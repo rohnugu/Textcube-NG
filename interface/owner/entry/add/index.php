@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 $IV = array(
 	'POST' => array(
 		'visibility' => array('int', 0, 3),
@@ -24,8 +32,6 @@ $IV = array(
 	);
 require ROOT . '/library/preprocessor.php';
 requireModel("blog.entry");
-
-
 requireStrictRoute();
 $entry = array();
 $entry['visibility'] = $_POST['visibility'];
@@ -47,6 +53,13 @@ $entry['accepttrackback'] = empty($_POST['accepttrackback']) ? 0 : 1;
 $entry['published'] = empty($_POST['published']) ? 1 : $_POST['published'];
 $entry['draft'] = empty($_POST['draft']) ? 0 : $_POST['draft'];
 if ($id = addEntry($blogid, $entry)) {
+	// 새 글 저장 전 업로드된 parent=0 임시 첨부파일을 새 entryId로 이전
+	$pool = DBModel::getInstance();
+	$pool->reset('Attachments');
+	$pool->setAttribute('parent', $id);
+	$pool->setQualifier('blogid', 'equals', $blogid);
+	$pool->setQualifier('parent', 'equals', 0);
+	$pool->update();
 	fireEvent('AddPost', $id, $entry);
 	Setting::setBlogSettingGlobal('LatestEditedEntry_user'.getUserId(),$id);
 }

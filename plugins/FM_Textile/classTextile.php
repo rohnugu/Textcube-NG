@@ -203,6 +203,7 @@ Applying Attributes:
 @define('txt_registered',         '&#174;');
 @define('txt_copyright',          '&#169;');
 
+#[AllowDynamicProperties]
 class Textile
 {
     var $hlgn;
@@ -231,7 +232,7 @@ class Textile
     var $rev = '$Rev: 216 $';
 
 // -------------------------------------------------------------
-    function Textile()
+    function __construct()
     {
         $this->hlgn = "(?:\<(?!>)|(?<!<)\>|\<\>|\=|[()]+(?! ))";
         $this->vlgn = "[\-^~]";
@@ -1101,12 +1102,7 @@ class Textile
     function txtgps($thing)
     {
         if (isset($_POST[$thing])) {
-            if (get_magic_quotes_gpc()) {
-                return stripslashes($_POST[$thing]);
-            }
-            else {
-                return $_POST[$thing];
-            }
+            return $_POST[$thing];
         }
         else {
             return '';

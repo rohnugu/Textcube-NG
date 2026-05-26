@@ -2,8 +2,8 @@
 <plugin version="1.0">
   <title xml:lang="ko">Google 맵</title>
   <title xml:lang="en">Google Map</title>
-  <link>http://maps.google.com</link>
-  <version>1.2</version>
+  <link>https://maps.google.com</link>
+  <version>1.3</version>
   <description xml:lang="ko">포스트에서 Google 맵을 삽입할 수 있게 해주고, 지역로그 및 포스트 내 쓰인 주소 정보와 연동할 수 있도록 도와줍니다.</description>
   <description xml:lang="en">Enables inserting Google Map into your posts and helps make use of it with location tags or text addresses written in the posts.</description>
   <license>GPL</license>
@@ -13,7 +13,7 @@
   <requirements>
     <textcube>
       <minVersion>1.8</minVersion>
-	</textcube>
+    </textcube>
   </requirements>
   <binding>
     <listener event="/plugin/GMapCustomInsert/" handler="GoogleMapUI_InsertMap" scope="owner" />
@@ -28,10 +28,9 @@
     <tag name="SKIN_local_rep_start" handler="GoogleMap_LocationLogView" />
     <config xml:lang="ko" dataValHandler="GoogleMap_ConfigHandler">
       <window width="500" height="550" />
-      <fieldset legend="설정">
-        <field title="Sensor :" name="sensors" type="checkbox">
-		  <op name="useSensor" value="1"><![CDATA[위치 센서 사용 여부]]></op>
-          <caption><![CDATA[모바일 기기 등에서 GPS와 같은 위치 센서를 사용할 경우 체크하세요.]]></caption>
+      <fieldset legend="API 설정">
+        <field title="API Key" name="apiKey" type="text" value="">
+          <caption><![CDATA[Google Maps JavaScript API 및 Static Maps API 사용을 위한 키입니다. <a href="https://console.cloud.google.com/google/maps-apis/" target="_blank">Google Cloud Console</a>에서 발급하세요. 미입력 시 지도에 "개발 전용" 워터마크가 표시됩니다.]]></caption>
         </field>
       </fieldset>
       <fieldset legend="기본 위치">
@@ -44,15 +43,15 @@
         <field title="기본 맵 형식" name="locative_maptype" type="select">
           <op value="G_NORMAL_MAP">일반 정보 지도</op>
           <op value="G_SATELLITE_MAP">위성 사진</op>
-          <op value="G_HYBRID_MAP" selected="selected">위성 사진 + 정보 지도</op>
+          <op value="G_HYBRID_MAP" checked="checked">위성 사진 + 정보 지도</op>
         </field>
       </fieldset>
     </config>
     <config xml:lang="en" dataValHandler="GoogleMap_ConfigHandler">
-      <fieldset legend="Settings">
-        <field title="Sensor :" name="sensors" type="checkbox">
-		  <op name="useSensor" value="1"><![CDATA[Use any location sensor?]]></op>
-          <caption><![CDATA[Check if youa are using location sensor like GPS.]]></caption>
+      <window width="500" height="550" />
+      <fieldset legend="API Settings">
+        <field title="API Key" name="apiKey" type="text" value="">
+          <caption><![CDATA[API key for Google Maps JavaScript API and Static Maps API. Obtain one from <a href="https://console.cloud.google.com/google/maps-apis/" target="_blank">Google Cloud Console</a>. Without a key, maps display a "For development only" watermark.]]></caption>
         </field>
       </fieldset>
       <fieldset legend="Default Location">

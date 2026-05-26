@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 global $__gCacheAttachment;
 $__gCacheAttachment = array();
@@ -35,6 +43,7 @@ function getAttachmentsFromCache($blogid, $value, $filter = 'parent') {
 	$result = array();
 	if (!empty($__gCacheAttachment)) {
 		foreach($__gCacheAttachment as $id => $info) {
+			if (!is_array($info)) continue;
 			$row = array_search($value, $info);
 			if ($row !== FALSE)
 				array_push($result,$__gCacheAttachment[$id]);
@@ -47,6 +56,7 @@ function getAttachmentFromCache($blogid, $value, $filter = 'name') {
 	global $__gCacheAttachment;
 	if (!empty($__gCacheAttachment)) {
 		foreach($__gCacheAttachment as $id => $info) {
+			if (!is_array($info)) continue;
 			$row = array_search($value, $info);
 			//if($row && $row == $filter) return $__gCacheAttachment[$id];
 			if ($row !== FALSE)
@@ -76,7 +86,7 @@ function getAttachmentByOnlyName($blogid, $name) {
 		$pool->setQualifier('blogid','equals',$blogid);
 		$pool->setQualifier('name','equals',$name,true);
 		$newAttachment = $pool->getRow('*');
-		array_push($__gCacheAttachment,$newAttachment);
+		if (is_array($newAttachment)) array_push($__gCacheAttachment,$newAttachment);
 		return $newAttachment;
 	}
 }
@@ -144,7 +154,7 @@ function addAttachment($blogid, $parent, $file) {
 		@chmod($path, 0777);
 	}
 	do {
-		$attachment['name'] = rand(1000000000, 9999999999) . ".$extension";
+		$attachment['name'] = random_int(1000000000, 9999999999) . ".$extension";
 		$attachment['path'] = "$path/{$attachment['name']}";
 	} while (file_exists($attachment['path']));
 	if (!move_uploaded_file($file['tmp_name'], $attachment['path']))
@@ -220,7 +230,7 @@ function copyAttachments($blogid, $originalEntryId, $targetEntryId) {
 		$extension = Misc::getFileExtension($attachment['label']);
 		$originalPath = "$path/{$attachment['name']}";
 		do {
-			$attachment['name'] = rand(1000000000, 9999999999) . ".$extension";
+			$attachment['name'] = random_int(1000000000, 9999999999) . ".$extension";
 			$attachment['path'] = "$path/{$attachment['name']}";
 		} while (file_exists($attachment['path']));
 		if(!copy($originalPath, $attachment['path'])) return 4; // copy failed.
@@ -348,7 +358,7 @@ function getEnclosure($entry) {
 
 function return_bytes($val) {
     $val = trim($val);
-    $last = strtolower($val{strlen($val)-1});
+    $last = strtolower($val[strlen($val)-1]);
     switch($last) {
         // The 'G' modifier is available since PHP 5.1.0
         case 'g':

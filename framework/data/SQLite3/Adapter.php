@@ -355,5 +355,16 @@ class DBAdapter implements IAdapter {
         "mediumtext" => "mediumtext",
         "varchar" => "varchar",
         "text"	=> "text");
+
+/*** Prepared Statement API (v1.85, STAGE 2) ***/
+	public static function prepare($query) {
+		throw new RuntimeException("Prepared statements not supported for this database adapter.");
+	}
+	public static function bindAndExecute($stmt, $types, ...$params) {
+		throw new RuntimeException("Prepared statements not supported for this database adapter.");
+	}
+	public static function fetchAllStmt($stmt) {
+		throw new RuntimeException("Prepared statements not supported for this database adapter.");
+	}
 }
 ?>

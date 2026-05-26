@@ -5,9 +5,9 @@
 class Misc {
 	static function getFileExtension($path) {
 		for ($i = strlen($path) - 1; $i >= 0; $i--) {
-			if ($path{$i} == '.')
+			if ($path[$i] == '.')
 				return strtolower(substr($path, $i + 1));
-			if (($path{$i} == '/') || ($path{$i} == '\\'))
+			if (($path[$i] == '/') || ($path[$i] == '\\'))
 				break;
 		}
 		return '';
@@ -149,7 +149,7 @@ class Misc {
 
 	static function getNumericValue($value) {
 		$value = trim($value);
-		switch (strtoupper($value{strlen($value) - 1})) {
+		switch (strtoupper($value[strlen($value) - 1])) {
 			case 'G':
 				$value *= 1024;
 			case 'M':

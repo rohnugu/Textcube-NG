@@ -400,7 +400,7 @@ function dump($data) {
 function dumpToHeader($data) {
 	static $count = 0;
 	$debug_string = print_r($data, true);
-	foreach( split( "\n", $debug_string ) as $line ) {
+	foreach( preg_split( '/\n/', $debug_string ) as $line ) {
 		$count++;
 		header( "X-TC-Debug-$count: $line" );
 	}

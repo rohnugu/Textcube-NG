@@ -288,7 +288,7 @@ else {
 // The default trivial text error handler.
 //=============================================================
 class JpGraphErrObject {
-    function JpGraphErrObject() {
+function __construct() {
 	// Empty. Reserved for future use
     }
 
@@ -511,7 +511,7 @@ class JpgTimer {
     var $idx;	
 //---------------
 // CONSTRUCTOR
-    function JpgTimer() {
+function __construct() {
 	$this->idx=0;
     }
 
@@ -551,7 +551,7 @@ class DateLocale {
 
 //---------------
 // CONSTRUCTOR	
-    function DateLocale() {
+function __construct() {
 	settype($this->iDayAbb, 'array');
 	settype($this->iShortDay, 'array');
 	settype($this->iShortMonth, 'array');
@@ -578,15 +578,15 @@ class DateLocale {
  
 	$this->iLocale = $aLocale;
 
-	for ( $i = 0, $ofs = 0 - strftime('%w'); $i < 7; $i++, $ofs++ ){
-	    $day = strftime('%a', strtotime("$ofs day"));
-	    $day{0} = strtoupper($day{0});
-	    $this->iDayAbb[$aLocale][]= $day{0};
+	for ( $i = 0, $ofs = 0 - date('w'); $i < 7; $i++, $ofs++ ){
+	    $day = date('D', strtotime("$ofs day"));
+	    $day[0] = strtoupper($day[0]);
+	    $this->iDayAbb[$aLocale][]= $day[0];
 	    $this->iShortDay[$aLocale][]= $day;
 	}
 
 	for($i=1; $i<=12; ++$i) {
-	    list($short ,$full) = explode('|', strftime("%b|%B",strtotime("2001-$i-01")));
+	    list($short ,$full) = explode('|', date('M|F', strtotime("2001-$i-01")));
 	    $this->iShortMonth[$aLocale][] = ucfirst($short);
 	    $this->iMonthName [$aLocale][] = ucfirst($full);
 	}
@@ -634,7 +634,7 @@ $gJpgDateLocale = new DateLocale();
 class FuncGenerator {
     var $iFunc='',$iXFunc='',$iMin,$iMax,$iStepSize;
 	
-    function FuncGenerator($aFunc,$aXFunc='') {
+function __construct($aFunc,$aXFunc='') {
 	$this->iFunc = $aFunc;
 	$this->iXFunc = $aXFunc;
     }
@@ -672,7 +672,7 @@ class Footer {
     var $iRightMargin = 3;
     var $iBottomMargin = 3;
 
-    function Footer() {
+function __construct() {
 	$this->left = new Text();
 	$this->left->ParagraphAlign('left');
 	$this->center = new Text();
@@ -702,6 +702,7 @@ class Footer {
 // CLASS Graph
 // Description: Main class to handle graphs
 //===================================================
+#[AllowDynamicProperties]
 class Graph {
     var $cache=null;		// Cache object (singleton)
     var $img=null;			// Img object (singleton)
@@ -773,7 +774,7 @@ class Graph {
     // aTimeOut		Timeout in minutes for image in cache
     // aInline		If true the image is streamed back in the call to Stroke()
     //			If false the image is just created in the cache
-    function Graph($aWidth=300,$aHeight=200,$aCachedName="",$aTimeOut=0,$aInline=true) {
+function __construct($aWidth=300,$aHeight=200,$aCachedName="",$aTimeOut=0,$aInline=true) {
 	GLOBAL $gJpgBrandTiming;
 	// If timing is used create a new timing object
 	if( $gJpgBrandTiming ) {
@@ -1369,7 +1370,7 @@ class Graph {
 		// us from recursively coming here again
 		$urlarg='?'._CSIM_DISPLAY.'=1';
 
-		while( list($key,$value) = each($_REQUEST) ) {
+		foreach( $_REQUEST as $key => $value ) {
 		    if( is_array($value) ) {
 			$n = count($value);
 			for( $i=0; $i < $n; ++$i ) {
@@ -2596,7 +2597,7 @@ class TTF {
     var $font_files,$style_names;
 //---------------
 // CONSTRUCTOR
-    function TTF() {
+function __construct() {
 	$this->style_names=array(FS_NORMAL=>'normal',FS_BOLD=>'bold',FS_ITALIC=>'italic',FS_BOLDITALIC=>'bolditalic');
 	// File names for available fonts
 	$this->font_files=array(
@@ -2709,7 +2710,7 @@ class Text {
 // CONSTRUCTOR
 
     // Create new text at absolute pixel coordinates
-    function Text($aTxt="",$aXAbsPos=0,$aYAbsPos=0) {
+function __construct($aTxt="",$aXAbsPos=0,$aYAbsPos=0) {
 	if( ! is_string($aTxt) ) {
 	    JpGraphError::Raise('First argument to Text::Text() must be s atring.');
 	}
@@ -2927,7 +2928,7 @@ class GraphTabTitle extends Text{
     var $corner = 6 , $posx = 7, $posy = 4;
     var $color='darkred',$fillcolor='lightyellow',$bordercolor='black';
     var $align = 'left', $width=TABTITLE_WIDTHFIT;
-    function GraphTabTitle() {
+function __construct() {
 	$this->t = '';
 	$this->font_style = FS_BOLD;
 	$this->hide = true;
@@ -3058,8 +3059,8 @@ class SuperScriptText extends Text {
     var $iSDir=0;
     var $iSimple=false;
 
-    function SuperScriptText($aTxt="",$aSuper="",$aXAbsPos=0,$aYAbsPos=0) {
-	parent::Text($aTxt,$aXAbsPos,$aYAbsPos);
+function __construct($aTxt="",$aSuper="",$aXAbsPos=0,$aYAbsPos=0) {
+	parent::__construct($aTxt,$aXAbsPos,$aYAbsPos);
 	$this->iSuper = $aSuper;
     }
 
@@ -3236,7 +3237,7 @@ class Grid {
     var $fill=false,$fillcolor=array('#EFEFEF','#BBCCFF');
 //---------------
 // CONSTRUCTOR
-    function Grid(&$aAxis) {
+function __construct(&$aAxis) {
 	$this->scale = &$aAxis->scale;
 	$this->img = &$aAxis->img;
     }
@@ -3398,7 +3399,7 @@ class Axis {
 
 //---------------
 // CONSTRUCTOR
-    function Axis(&$img,&$aScale,$color=array(0,0,0)) {
+function __construct(&$img,&$aScale,$color=array(0,0,0)) {
 	$this->img = &$img;
 	$this->scale = &$aScale;
 	$this->color = $color;
@@ -3822,7 +3823,7 @@ class Ticks {
 
 //---------------
 // CONSTRUCTOR
-    function Ticks(&$aScale) {
+function __construct(&$aScale) {
 	$this->scale=&$aScale;
 	$this->precision = -1;
     }
@@ -3940,7 +3941,7 @@ class LinearTicks extends Ticks {
     var $text_label_start=0;
 //---------------
 // CONSTRUCTOR
-    function LinearTicks() {
+function __construct() {
 	$this->precision = -1;
     }
 
@@ -4207,7 +4208,7 @@ class LinearScale {
     var $name = 'lin';
 //---------------
 // CONSTRUCTOR
-    function LinearScale($aMin=0,$aMax=0,$aType="y") {
+function __construct($aMin=0,$aMax=0,$aType="y") {
 	assert($aType=="x" || $aType=="y" );
 	assert($aMin<=$aMax);
 		
@@ -4763,7 +4764,7 @@ class LinearScale {
 class RGB {
     var $rgb_table;
     var $img;
-    function RGB($aImg=null) {
+function __construct($aImg=null) {
 	$this->img = $aImg;
 		
 	// Conversion array between color names and RGB
@@ -5354,7 +5355,7 @@ class Picture {
 
     //---------------
     // CONSTRUCTOR
-    function Picture($aWidth,$aHeight,$aFormat=DEFAULT_GFORMAT) {
+function __construct($aWidth,$aHeight,$aFormat=DEFAULT_GFORMAT) {
 	$this->CreateImgCanvas($aWidth,$aHeight);
 	$this->SetAutoMargin();		
 
@@ -5564,7 +5565,7 @@ class Picture {
 
     // Get the specific height for a text string
     function GetTextHeight($txt="",$angle=0) {
-	$tmp = split("\n",$txt);
+	$tmp = explode("\n",$txt);
 	$n = count($tmp);
 	$m=0;
 	for($i=0; $i< $n; ++$i)
@@ -5609,7 +5610,7 @@ class Picture {
     // Get actual width of text in absolute pixels
     function GetTextWidth($txt,$angle=0) {
 
-	$tmp = split("\n",$txt);
+	$tmp = explode("\n",$txt);
 	$n = count($tmp);
 	if( $this->font_family <= FF_FONT2+1 ) {
 
@@ -5750,7 +5751,7 @@ class Picture {
 	    imagestringup($this->img,$this->font_family,$x,$y,$txt,$this->current_color);
 	else {
 	    if( strpos($txt, "\n") !== false ) { 
-		$tmp = split("\n",$txt);
+		$tmp = explode("\n",$txt);
 		for($i=0; $i < count($tmp); ++$i) {
 		    $w1 = $this->GetTextWidth($tmp[$i]);
 		    if( $paragraph_align=="left" ) {
@@ -5930,7 +5931,7 @@ class Picture {
 	    $w=$this->GetTextWidth($txt);
 
 	    $y -= $linemargin/2;
-	    $tmp = split("\n",$txt);
+	    $tmp = explode("\n",$txt);
 	    $nl = count($tmp);
 	    $h = $nl * $fh;
 
@@ -6902,8 +6903,8 @@ class RotPicture extends Picture {
     var $a=0;
     var $dx=0,$dy=0,$transx=0,$transy=0; 
 	
-    function RotPicture($aWidth,$aHeight,$a=0,$aFormat=DEFAULT_GFORMAT) {
-	$this->Picture($aWidth,$aHeight,$aFormat);
+function __construct($aWidth,$aHeight,$a=0,$aFormat=DEFAULT_GFORMAT) {
+	parent::__construct($aWidth,$aHeight,$aFormat);
 	$this->dx=$this->left_margin+$this->plotwidth/2;
 	$this->dy=$this->top_margin+$this->plotheight/2;
 	$this->SetAngle($a);	
@@ -7049,7 +7050,7 @@ class ImgStreamCache {
     var $timeout=0; 	// Infinite timeout
     //---------------
     // CONSTRUCTOR
-    function ImgStreamCache(&$aImg, $aCacheDir=CACHE_DIR) {
+function __construct(&$aImg, $aCacheDir=CACHE_DIR) {
 	$this->img = &$aImg;
 	$this->cache_dir = $aCacheDir;
     }
@@ -7225,7 +7226,7 @@ class Legend {
     var $reverse = false ;
 //---------------
 // CONSTRUCTOR
-    function Legend() {
+function __construct() {
 	// Empty
     }
 //---------------
@@ -7656,7 +7657,7 @@ class Plot {
     var $legendcsimalt='';
 //---------------
 // CONSTRUCTOR
-    function Plot(&$aDatay,$aDatax=false) {
+function __construct(&$aDatay,$aDatax=false) {
 	$this->numpoints = count($aDatay);
 	if( $this->numpoints==0 )
 	    JpGraphError::Raise(" Empty data array specified for plot. Must have at least one data point.");
@@ -7799,7 +7800,7 @@ class Plot {
     }
 
     // Framework function the chance for each plot class to set a legend
-    function Legend(&$aGraph) {
+function __construct(&$aGraph) {
 	if( $this->legend != "" )
 	    $aGraph->legend->Add($this->legend,$this->color,"",0,$this->legendcsimtarget,$this->legendcsimalt);    
     }
@@ -7823,7 +7824,7 @@ class PlotLine {
 
 //---------------
 // CONSTRUCTOR
-    function PlotLine($aDir=HORIZONTAL,$aPos=0,$aColor="black",$aWeight=1) {
+function __construct($aDir=HORIZONTAL,$aPos=0,$aColor="black",$aWeight=1) {
 	$this->direction = $aDir;
 	$this->color=$aColor;
 	$this->weight=$aWeight;

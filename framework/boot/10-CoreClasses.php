@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 /// Singleton implementation.
 if(version_compare(PHP_VERSION, '5.3.0','>=')) { // >= 5.3 Singleton implementation 
@@ -295,14 +303,15 @@ final class Validator {
 	}
 
 	static function number($value, $min = null, $max = null, $bypass = false) {
-		if (($bypass === false) && !is_numeric($value))
-			return false;
-		if(!is_null($value)) {
-			if (isset($min) && ($value < $min))
+		if (!is_numeric($value)) {
+			if ($bypass === false)
 				return false;
-			if (isset($max) && ($value > $max))
-				return false;
+			return true;
 		}
+		if (isset($min) && ($value < $min))
+			return false;
+		if (isset($max) && ($value > $max))
+			return false;
 		return true;
 	}
 
@@ -450,9 +459,9 @@ final class Timezone {
 			return Timezone::set('GMT');
 		else if (!is_numeric($timezone) || (strlen($timezone) != 5))
 			return false;
-		else if ($timezone{0} == '+')
+		else if ($timezone[0] == '+')
 			return Timezone::set('UTC-' . substr($timezone, 1, 2) . ':' . substr($timezone, 3, 2));
-		else if ($timezone{0} == '-')
+		else if ($timezone[0] == '-')
 			return Timezone::set('UTC+' . substr($timezone, 1, 2) . ':' . substr($timezone, 3, 2));
 		else
 			return false;
@@ -536,51 +545,100 @@ final class Timezone {
 }
 
 
+// PHP 8.1 strftime() / gmstrftime() deprecated 대응 (php.net/migration81.deprecated).
+// 포맷 문자열을 문자 단위로 처리하여 date()/gmdate() 로 매핑.
+// 로케일 의존 코드(%a,%b,%B,%c)는 영문 date() 동등값 사용.
+function _strftime_apply(string $fmt, int $ts, bool $gmt): string {
+	$result = '';
+	$len = strlen($fmt);
+	for ($i = 0; $i < $len; $i++) {
+		if ($fmt[$i] !== '%' || $i + 1 >= $len) {
+			$result .= $fmt[$i];
+			continue;
+		}
+		$i++;
+		$fn = $gmt ? 'gmdate' : 'date';
+		$result .= match($fmt[$i]) {
+			'A' => $fn('l', $ts),
+			'a' => $fn('D', $ts),
+			'B' => $fn('F', $ts),
+			'b' => $fn('M', $ts),
+			'c' => $fn('D, d M Y H:i:s', $ts) . ($gmt ? ' GMT' : ' ' . date('O', $ts)),
+			'd' => $fn('d', $ts),
+			'e' => ltrim($fn('d', $ts), '0') ?: '0',
+			'H' => $fn('H', $ts),
+			'I' => $fn('h', $ts),
+			'j' => sprintf('%03d', (int)$fn('z', $ts) + 1),
+			'M' => $fn('i', $ts),
+			'm' => $fn('m', $ts),
+			'n' => "\n",
+			'p' => $fn('A', $ts),
+			'P' => $fn('a', $ts),
+			'R' => $fn('H:i', $ts),
+			'S' => $fn('s', $ts),
+			'T' => $fn('H:i:s', $ts),
+			't' => "\t",
+			'u' => $fn('N', $ts),
+			'V' => $fn('W', $ts),
+			'W' => $fn('W', $ts),
+			'w' => $fn('w', $ts),
+			'X' => $fn('H:i:s', $ts),
+			'Y' => $fn('Y', $ts),
+			'y' => $fn('y', $ts),
+			'Z' => $gmt ? 'GMT' : date('T', $ts),
+			'z' => $gmt ? '+0000' : date('O', $ts),
+			'%' => '%',
+			default => '%' . $fmt[$i],
+		};
+	}
+	return $result;
+}
+function strftime_compat(string $format, ?int $timestamp = null): string {
+	return _strftime_apply($format, $timestamp ?? time(), false);
+}
+function gmstrftime_compat(string $format, ?int $timestamp = null): string {
+	return _strftime_apply($format, $timestamp ?? time(), true);
+}
+
 final class Timestamp {
 	static function format($format = '%c', $time = null) {
-		if (isset($time))
-			return strftime(_t($format), $time);
-		else
-			return strftime(_t($format));
+		return strftime_compat(_t($format), $time);
 	}
 
 	static function formatGMT($format = '%c', $time = null) {
-		if (isset($time))
-			return gmstrftime(_t($format), $time);
-		else
-			return gmstrftime(_t($format));
+		return gmstrftime_compat(_t($format), $time);
 	}
 
 	static function format2($time) {
 		if (date('Ymd', $time) == date('Ymd'))
-			return strftime(_t('%H:%M'), $time);
+			return strftime_compat(_t('%H:%M'), $time);
 		else if (date('Y', $time) == date('Y', time()))
-			return strftime(_t('%m/%d'), $time);
+			return strftime_compat(_t('%m/%d'), $time);
 		else
-			return strftime(_t('%Y'), $time);
+			return strftime_compat(_t('%Y'), $time);
 	}
 
 	static function format3($time) {
 		if (date('Ymd', $time) == date('Ymd'))
-			return strftime(_t('%H:%M:%S'), $time);
+			return strftime_compat(_t('%H:%M:%S'), $time);
 		else
-			return strftime(_t('%Y/%m/%d'), $time);
+			return strftime_compat(_t('%Y/%m/%d'), $time);
 	}
 
 	static function format5($time = null) {
-		return (isset($time) ? strftime(_t('%Y/%m/%d %H:%M'), $time) : strftime(_t('%Y/%m/%d %H:%M')));
+		return strftime_compat(_t('%Y/%m/%d %H:%M'), $time);
 	}
 
 	static function formatDate($time = null) {
-		return (isset($time) ? strftime(_t('%Y/%m/%d'), $time) : strftime(_t('%Y/%m/%d')));
+		return strftime_compat(_t('%Y/%m/%d'), $time);
 	}
 
 	static function formatDate2($time = null) {
-		return (isset($time) ? strftime(_t('%Y/%m'), $time) : strftime(_t('%Y/%m')));
+		return strftime_compat(_t('%Y/%m'), $time);
 	}
 
 	static function formatTime($time = null) {
-		return (isset($time) ? strftime(_t('%H:%M:%S'), $time) : strftime(_t('%H:%M:%S')));
+		return strftime_compat(_t('%H:%M:%S'), $time);
 	}
 
 	static function get($format = 'YmdHis', $time = null) {
@@ -727,6 +785,7 @@ final class Path {
 }
 
 
+#[AllowDynamicProperties]
 class XMLStruct {
 	var $struct, $error;
 
@@ -863,7 +922,7 @@ class XMLStruct {
 				$remains = '';
 				if (strlen($chunk) >= 10240) {
 					for ($c = 1; $c <= 4; $c++) {
-						switch ($chunk{strlen($chunk) - $c} & "\xC0") {
+						switch ($chunk[strlen($chunk) - $c] & "\xC0") {
 							case "\x00":
 							case "\x40":
 								if ($c > 1) {
@@ -993,7 +1052,7 @@ class XMLStruct {
 
 	function & selectNodes($path) {
 		/*
-		if ($path{strlen($path) - 1} == ']') {
+		if ($path[strlen($path) - 1] == ']') {
 			$null = null;
 			return $null;
 		}
@@ -1007,7 +1066,7 @@ class XMLStruct {
 
 		while ($d = array_shift($p)) {
 			$o = 0;
-			if ($d{strlen($d) - 1} == ']') {
+			if ($d[strlen($d) - 1] == ']') {
 				@list($d, $o) = explode('[', $d, 2);
 				if (is_null($o)) {
 					$null = null;

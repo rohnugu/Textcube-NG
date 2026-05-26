@@ -126,6 +126,71 @@ closedir($handler);
 								}
 								request.send("&useCustomSMTP="+useCustomSMTP+"&smtpHost="+encodeURIComponent(smtpHost)+"&smtpPort="+smtpPort);
 							}
+<?php if ($service['type'] == 'path') { ?>
+							function setRootRedirect() {
+								var rootRedirectURL = document.getElementById('rootRedirectURL').value.trim();
+								var request = new HTTPRequest("POST", "<?php echo $blogURL;?>/control/server/rootredirect/");
+								request.onSuccess = function() {
+									PM.showMessage("<?php echo _t('저장했습니다');?>", "center", "bottom");
+								}
+								request.onError = function() {
+									alert('<?php echo _t('저장하지 못했습니다');?>');
+								}
+								request.send("rootRedirectURL=" + encodeURIComponent(rootRedirectURL));
+							}
+							function setPathRouting() {
+								var pathNotFoundBehavior = document.getElementById('pathNotFoundBehavior').value;
+								var pathNotFoundRedirectURL = document.getElementById('pathNotFoundRedirectURL').value.trim();
+								var request = new HTTPRequest("POST", "<?php echo $blogURL;?>/control/server/pathrouting/");
+								request.onSuccess = function() {
+									PM.showMessage("<?php echo _t('저장했습니다');?>", "center", "bottom");
+								}
+								request.onError = function() {
+									alert('<?php echo _t('저장하지 못했습니다');?>');
+								}
+								request.send(
+									"pathNotFoundBehavior=" + encodeURIComponent(pathNotFoundBehavior) +
+									"&pathNotFoundRedirectURL=" + encodeURIComponent(pathNotFoundRedirectURL)
+								);
+							}
+							function updatePathRoutingFields() {
+								var behavior = document.getElementById('pathNotFoundBehavior').value;
+								document.getElementById('pathNotFoundRedirectURL-row').style.display = (behavior === 'redirect') ? '' : 'none';
+							}
+<?php } ?>
+<?php if ($service['type'] == 'domain') { ?>
+							function setDomainRouting() {
+								var domainRootBehavior = document.getElementById('domainRootBehavior').value;
+								var domainRootRedirectURL = document.getElementById('domainRootRedirectURL').value.trim();
+								var domainRootBlogId = document.getElementById('domainRootBlogId').value.trim();
+								var domainMismatchBehavior = document.getElementById('domainMismatchBehavior').value;
+								var domainMismatchRedirectURL = document.getElementById('domainMismatchRedirectURL').value.trim();
+								var domainMismatchBlogId = document.getElementById('domainMismatchBlogId').value.trim();
+								var request = new HTTPRequest("POST", "<?php echo $blogURL;?>/control/server/domainrouting/");
+								request.onSuccess = function() {
+									PM.showMessage("<?php echo _t('저장했습니다');?>", "center", "bottom");
+								}
+								request.onError = function() {
+									alert('<?php echo _t('저장하지 못했습니다');?>');
+								}
+								request.send(
+									"domainRootBehavior=" + encodeURIComponent(domainRootBehavior) +
+									"&domainRootRedirectURL=" + encodeURIComponent(domainRootRedirectURL) +
+									"&domainRootBlogId=" + encodeURIComponent(domainRootBlogId) +
+									"&domainMismatchBehavior=" + encodeURIComponent(domainMismatchBehavior) +
+									"&domainMismatchRedirectURL=" + encodeURIComponent(domainMismatchRedirectURL) +
+									"&domainMismatchBlogId=" + encodeURIComponent(domainMismatchBlogId)
+								);
+							}
+							function updateDomainRoutingFields() {
+								var rootBehavior = document.getElementById('domainRootBehavior').value;
+								document.getElementById('domainRootRedirectURL-row').style.display = (rootBehavior === 'redirect') ? '' : 'none';
+								document.getElementById('domainRootBlogId-row').style.display = (rootBehavior === 'blog') ? '' : 'none';
+								var mismatchBehavior = document.getElementById('domainMismatchBehavior').value;
+								document.getElementById('domainMismatchRedirectURL-row').style.display = (mismatchBehavior === 'redirect') ? '' : 'none';
+								document.getElementById('domainMismatchBlogId-row').style.display = (mismatchBehavior === 'blog') ? '' : 'none';
+							}
+<?php } ?>
 <?php
 if(!defined('__TEXTCUBE_NO_FANCY_URL__')) {
 ?>
@@ -187,9 +252,9 @@ if (!is_writable(ROOT . "/config.php")) {
 											<dd>
 												<select id="skin" name="skin">
 <?php
-foreach ($skinList as $skin => $value) {
+foreach ($skinList as $skinName => $value) {
 ?>
-													<option value="<?php echo $skin; ?>"<?php echo ($skin == $service['skin'] ? ' selected="selected"' : ''); ?>><?php echo $skin; ?></option>
+													<option value="<?php echo $skinName; ?>"<?php echo ($skinName == $service['skin'] ? ' selected="selected"' : ''); ?>><?php echo $skinName; ?></option>
 <?php
 }
 ?>												</select>
@@ -303,7 +368,22 @@ foreach($encodingList as $enc) {
 										<dl id="memcached-line" class="line">
 											<dt><span class="label"><?php echo _t('Memcached 사용');?></span></dt>
 											<dd>
-												<input type="checkbox" id="useMemcached" class="checkbox" name="useMemcached"<?php echo (isset($service['memcached']) && $service['memcached']) ? ' checked="checked"' : '';?> /><label for="useMemcached"><?php echo _t('Memcached 모듈을 사용합니다.').' '._t('블로그의 속도 향상을 위하여 Memcached를 사용합니다. 이 기능을 사용하기 위해서는 서버에 Memcached가 설치되어 있고, PHP가 Memcached를 사용할 수 있도록 설정되어 있어야 합니다.');?></label>
+												<input type="checkbox" id="useMemcached" class="checkbox" name="useMemcached"<?php echo (isset($service['memcached']) && $service['memcached']) ? ' checked="checked"' : '';?> /><label for="useMemcached"><?php
+	$_mcTooltip = htmlspecialchars(implode("\n", [
+		_t('Memcached 저장 대상:'),
+		'  • ' . _t('세션 저장소 (Sessions DB 테이블 → Memcached)'),
+		'  • ' . _t('DB 쿼리 결과 캐시 (queryCache)'),
+		'  • ' . _t('전역 설정 캐시 (globalCacheStorage)'),
+		'',
+		_t('파일시스템 고정 (이 설정과 무관):'),
+		'  • ' . _t('페이지 HTML 캐시 (pageCache)'),
+		'  • ' . _t('코드 캐시 (codecache)'),
+		'  • ' . _t('스킨 캐시 (skincache)'),
+	]));
+	echo _t('Memcached 모듈을 사용합니다.')
+		. ' ' . _t('블로그의 속도 향상을 위하여 Memcached를 사용합니다. 이 기능을 사용하기 위해서는 서버에 Memcached가 설치되어 있고, PHP가 Memcached를 사용할 수 있도록 설정되어 있어야 합니다.')
+		. ' <abbr title="' . $_mcTooltip . '">' . _t('적용 범위 ▾') . '</abbr>';
+?></label>
 											</dd>
 										</dl>
 										<dl id="reader-line" class="line">
@@ -408,6 +488,130 @@ foreach($encodingList as $enc) {
 								</form>
 							</div>
 						</div>
+
+<?php if ($service['type'] == 'path') { ?>
+						<hr class="hidden" />
+						<div id="part-control-rootredirect" class="part">
+							<h2 class="caption"><span class="main-text"><?php echo _t('루트 접근 리다이렉트를 설정합니다');?></span></h2>
+							<div class="main-explain-box">
+								<p class="explain"><?php echo _t('path 모드에서 도메인 루트(/)로 접근할 때 이동할 URL을 설정합니다.').' '._t('비워두면 첫 번째 블로그 경로로 자동으로 이동합니다.').' '._t('config.php에 $service[\'rootRedirectURL\']을 설정하면 이 값보다 우선 적용됩니다.');?></p>
+							</div>
+							<div class="data-inbox">
+								<form class="section" method="post" action="<?php echo $blogURL;?>/control/server/rootredirect/">
+									<dl>
+										<dt class="title"><span class="label"><?php echo _t('루트 리다이렉트 URL');?></span></dt>
+										<dd>
+											<input id="rootRedirectURL" type="text" class="input-text" name="rootRedirectURL" size="60" value="<?php echo htmlspecialchars(Setting::getServiceSettingGlobal('rootRedirectURL', '')); ?>" />
+											<label for="rootRedirectURL"><?php echo _t('비워두면 첫 번째 블로그 경로로 자동 이동합니다. 예: https://example.com/blog/');?></label>
+										</dd>
+									</dl>
+									<div class="button-box">
+										<input type="submit" class="save-button input-button" value="<?php echo _t('저장하기');?>" onclick="setRootRedirect(); return false;" />
+									</div>
+								</form>
+							</div>
+						</div>
+<?php } ?>
+<?php if ($service['type'] == 'path') { ?>
+						<hr class="hidden" />
+						<div id="part-control-pathrouting" class="part">
+							<h2 class="caption"><span class="main-text"><?php echo _t('알 수 없는 블로그 접근을 설정합니다');?></span></h2>
+							<div class="main-explain-box">
+								<p class="explain"><?php echo _t('path 모드에서 존재하지 않는 블로그 경로로 접근할 때의 동작을 설정합니다.').' '._t('기본값으로 두면 기본 블로그를 표시합니다.').' '._t('config.php에 $service[\'pathNotFoundBehavior\']를 설정하면 DB 설정보다 우선 적용됩니다.');?></p>
+							</div>
+							<div class="data-inbox">
+								<form class="section" method="post" action="<?php echo $blogURL;?>/control/server/pathrouting/">
+									<dl class="line">
+										<dt><span class="label"><?php echo _t('미발견 블로그 동작');?></span></dt>
+										<dd>
+											<select id="pathNotFoundBehavior" name="pathNotFoundBehavior" onchange="updatePathRoutingFields()">
+												<option value=""<?php echo (Setting::getServiceSettingGlobal('pathNotFoundBehavior','') === '') ? ' selected="selected"' : ''; ?>><?php echo _t('기본값 (기본 블로그 표시)');?></option>
+												<option value="redirect"<?php echo (Setting::getServiceSettingGlobal('pathNotFoundBehavior','') === 'redirect') ? ' selected="selected"' : ''; ?>><?php echo _t('리다이렉트');?></option>
+												<option value="404"<?php echo (Setting::getServiceSettingGlobal('pathNotFoundBehavior','') === '404') ? ' selected="selected"' : ''; ?>><?php echo _t('404 오류');?></option>
+											</select>
+										</dd>
+									</dl>
+									<dl id="pathNotFoundRedirectURL-row" class="line" style="<?php echo (Setting::getServiceSettingGlobal('pathNotFoundBehavior','') === 'redirect') ? '' : 'display:none'; ?>">
+										<dt><span class="label"><?php echo _t('리다이렉트 URL');?></span></dt>
+										<dd>
+											<input id="pathNotFoundRedirectURL" type="text" class="input-text" name="pathNotFoundRedirectURL" size="60" value="<?php echo htmlspecialchars(Setting::getServiceSettingGlobal('pathNotFoundRedirectURL', '')); ?>" />
+										</dd>
+									</dl>
+									<div class="button-box">
+										<input type="submit" class="save-button input-button" value="<?php echo _t('저장하기');?>" onclick="setPathRouting(); return false;" />
+									</div>
+								</form>
+							</div>
+						</div>
+<?php } ?>
+<?php if ($service['type'] == 'domain') { ?>
+						<hr class="hidden" />
+						<div id="part-control-domainrouting" class="part">
+							<h2 class="caption"><span class="main-text"><?php echo _t('도메인 라우팅을 설정합니다');?></span></h2>
+							<div class="main-explain-box">
+								<p class="explain"><?php echo _t('domain 모드에서 루트 도메인(서브도메인 없음) 또는 알 수 없는 도메인으로 접근할 때의 동작을 설정합니다.').' '._t('config.php에서 설정하면 DB 설정보다 우선 적용됩니다.');?></p>
+							</div>
+							<div class="data-inbox">
+								<form class="section" method="post" action="<?php echo $blogURL;?>/control/server/domainrouting/">
+									<fieldset class="container">
+										<legend><?php echo _t('루트 도메인 접근');?></legend>
+										<dl class="line">
+											<dt><span class="label"><?php echo _t('루트 도메인 동작');?></span></dt>
+											<dd>
+												<select id="domainRootBehavior" name="domainRootBehavior" onchange="updateDomainRoutingFields()">
+													<option value=""<?php echo (Setting::getServiceSettingGlobal('domainRootBehavior','') === '') ? ' selected="selected"' : ''; ?>><?php echo _t('기본값 (기본 블로그 표시)');?></option>
+													<option value="redirect"<?php echo (Setting::getServiceSettingGlobal('domainRootBehavior','') === 'redirect') ? ' selected="selected"' : ''; ?>><?php echo _t('리다이렉트');?></option>
+													<option value="blog"<?php echo (Setting::getServiceSettingGlobal('domainRootBehavior','') === 'blog') ? ' selected="selected"' : ''; ?>><?php echo _t('특정 블로그 표시');?></option>
+													<option value="404"<?php echo (Setting::getServiceSettingGlobal('domainRootBehavior','') === '404') ? ' selected="selected"' : ''; ?>><?php echo _t('404 오류');?></option>
+												</select>
+											</dd>
+										</dl>
+										<dl id="domainRootRedirectURL-row" class="line" style="<?php echo (Setting::getServiceSettingGlobal('domainRootBehavior','') === 'redirect') ? '' : 'display:none'; ?>">
+											<dt><span class="label"><?php echo _t('리다이렉트 URL');?></span></dt>
+											<dd>
+												<input id="domainRootRedirectURL" type="text" class="input-text" name="domainRootRedirectURL" size="60" value="<?php echo htmlspecialchars(Setting::getServiceSettingGlobal('domainRootRedirectURL', '')); ?>" />
+											</dd>
+										</dl>
+										<dl id="domainRootBlogId-row" class="line" style="<?php echo (Setting::getServiceSettingGlobal('domainRootBehavior','') === 'blog') ? '' : 'display:none'; ?>">
+											<dt><span class="label"><?php echo _t('블로그 ID');?></span></dt>
+											<dd>
+												<input id="domainRootBlogId" type="text" class="input-text" name="domainRootBlogId" size="10" value="<?php echo htmlspecialchars(Setting::getServiceSettingGlobal('domainRootBlogId', '')); ?>" />
+											</dd>
+										</dl>
+									</fieldset>
+									<fieldset class="container">
+										<legend><?php echo _t('알 수 없는 도메인 접근');?></legend>
+										<dl class="line">
+											<dt><span class="label"><?php echo _t('도메인 불일치 동작');?></span></dt>
+											<dd>
+												<select id="domainMismatchBehavior" name="domainMismatchBehavior" onchange="updateDomainRoutingFields()">
+													<option value=""<?php echo (Setting::getServiceSettingGlobal('domainMismatchBehavior','') === '') ? ' selected="selected"' : ''; ?>><?php echo _t('기본값 (404 오류)');?></option>
+													<option value="redirect"<?php echo (Setting::getServiceSettingGlobal('domainMismatchBehavior','') === 'redirect') ? ' selected="selected"' : ''; ?>><?php echo _t('리다이렉트');?></option>
+													<option value="blog"<?php echo (Setting::getServiceSettingGlobal('domainMismatchBehavior','') === 'blog') ? ' selected="selected"' : ''; ?>><?php echo _t('특정 블로그 표시');?></option>
+													<option value="404"<?php echo (Setting::getServiceSettingGlobal('domainMismatchBehavior','') === '404') ? ' selected="selected"' : ''; ?>><?php echo _t('404 오류');?></option>
+												</select>
+											</dd>
+										</dl>
+										<dl id="domainMismatchRedirectURL-row" class="line" style="<?php echo (Setting::getServiceSettingGlobal('domainMismatchBehavior','') === 'redirect') ? '' : 'display:none'; ?>">
+											<dt><span class="label"><?php echo _t('리다이렉트 URL');?></span></dt>
+											<dd>
+												<input id="domainMismatchRedirectURL" type="text" class="input-text" name="domainMismatchRedirectURL" size="60" value="<?php echo htmlspecialchars(Setting::getServiceSettingGlobal('domainMismatchRedirectURL', '')); ?>" />
+											</dd>
+										</dl>
+										<dl id="domainMismatchBlogId-row" class="line" style="<?php echo (Setting::getServiceSettingGlobal('domainMismatchBehavior','') === 'blog') ? '' : 'display:none'; ?>">
+											<dt><span class="label"><?php echo _t('블로그 ID');?></span></dt>
+											<dd>
+												<input id="domainMismatchBlogId" type="text" class="input-text" name="domainMismatchBlogId" size="10" value="<?php echo htmlspecialchars(Setting::getServiceSettingGlobal('domainMismatchBlogId', '')); ?>" />
+											</dd>
+										</dl>
+									</fieldset>
+									<div class="button-box">
+										<input type="submit" class="save-button input-button" value="<?php echo _t('저장하기');?>" onclick="setDomainRouting(); return false;" />
+									</div>
+								</form>
+							</div>
+						</div>
+<?php } ?>
 
 						<hr class="hidden" />
 <?php

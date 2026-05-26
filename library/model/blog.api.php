@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 /*--------- Basic functions -----------*/
 
@@ -128,7 +136,7 @@ function api_timestamp( $date8601 )
 
 function api_dateiso8601( $timestamp )
 {
-	return gmstrftime( "%Y%m%dT%H:%M:%S", $timestamp );
+	return gmdate('Ymd\TH:i:s', $timestamp);
 }
 
 
@@ -353,10 +361,10 @@ function api_addAttachment($blogid,$parent,$file) {
 	if ($oldFile !== null) {
 		$attachment['name'] = $oldFile;
 	} else {
-		$attachment['name'] = rand(1000000000, 9999999999) . $extension;
+		$attachment['name'] = random_int(1000000000, 9999999999) . $extension;
 		
 		while (Attachment::doesExist($attachment['name']))
-		$attachment['name'] = rand(1000000000, 9999999999) . $extension;
+		$attachment['name'] = random_int(1000000000, 9999999999) . $extension;
 	}
 	
 	
@@ -387,9 +395,27 @@ function api_addAttachment($blogid,$parent,$file) {
 	}
 	
 	$attachment['mime']=UTF8::lessenAsEncoding($attachment['mime'], 32);
-	
+
 	@chmod($attachment['path'],0666);
-	$result=POD::query("insert into {$database['prefix']}Attachments values ($blogid, {$attachment['parent']}, '{$attachment['name']}', '$label', '{$attachment['mime']}', {$attachment['size']}, {$attachment['width']}, {$attachment['height']}, UNIX_TIMESTAMP(), 0,0)");
+	// Prepared statement — INSERT with external user input (label from filename, SQL Injection 대응)
+	$stmt = POD::prepare("INSERT INTO {$database['prefix']}Attachments VALUES (?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(),0,0)");
+	if (!$stmt) {
+		@unlink($attachment['path']);
+		return false;
+	}
+	// types: blogid(i) parent(i) name(s) label(s) mime(s) size(i) width(i) height(i) = 8 params
+	POD::bindAndExecute($stmt, 'iisssiii',
+		(int)$blogid,
+		(int)$attachment['parent'],
+		(string)$attachment['name'],
+		(string)$attachment['label'],
+		(string)$attachment['mime'],
+		(int)$attachment['size'],
+		(int)$attachment['width'],
+		(int)$attachment['height']
+	);
+	$result = $stmt->affected_rows > 0 || $stmt->errno === 0;
+	$stmt->close();
 	if(!$result) {
 		@unlink($attachment['path']);
 		return false;
@@ -410,20 +436,29 @@ function api_update_attaches( $parent, $attaches = null)
 {
 	global $database;
 	if (is_null($attaches)) {
-		POD::query( "update {$database['prefix']}Attachments set parent=$parent where blogid=".getBlogId()." and parent=0");		
+		POD::query( "update {$database['prefix']}Attachments set parent=$parent where blogid=".getBlogId()." and parent=0");
 	} else {
+		// Prepared statement — name comes from content-parsed filenames (SQL Injection 대응)
+		$blogid = getBlogId();
 		foreach( $attaches as $att )
 		{
-			$att = POD::escapeString($att);
-			POD::query( "update {$database['prefix']}Attachments set parent=$parent where blogid=".getBlogId()." and parent=0 and name='" . $att . "'");
+			$stmt = POD::prepare("UPDATE {$database['prefix']}Attachments SET parent=? WHERE blogid=? AND parent=0 AND name=?");
+			if ($stmt) {
+				POD::bindAndExecute($stmt, 'iis', (int)$parent, (int)$blogid, (string)$att);
+				$stmt->close();
+			}
 		}
 	}
 }
 
+/**
+ * @security raw-sql-escape
+ * $newfile['label']은 DB에서 조회된 데이터로, SELECT 쿼리에서 POD::escapeString()으로 이스케이프됨.
+ */
 function api_update_attaches_with_replace($entryId)
 {
 	global $database;
-	
+
 	$newFiles = POD::queryAll("SELECT name, label FROM {$database['prefix']}Attachments WHERE blogid=".getBlogId()." AND parent=0");
 	if( $newFiles ) {
 		foreach($newFiles as $newfile) {
@@ -442,12 +477,28 @@ function api_update_attaches_with_replace($entryId)
 function api_BlogAPI()
 {
 	global $blogApiFunctions;
-	if (!array_key_exists('HTTP_RAW_POST_DATA', $GLOBALS)) {
+	// [SECURITY] post_max_size 기반 상한을 적용하여 대용량 페이로드로 인한 메모리 고갈을 1차 방어하나,
+	// 근본적으로는 스트리밍 XML 파서 도입이 필요함 (장기 과제).
+	// $GLOBALS['HTTP_RAW_POST_DATA'] 는 PHP 7.0에서 제거됨 → file_get_contents('php://input') 로 대체.
+	$rawSize = trim(ini_get('post_max_size'));
+	$maxSize = (int)$rawSize;
+	if ($maxSize > 0) {
+		$unit = strtolower(substr($rawSize, -1));
+		if ($unit === 'g') $maxSize *= 1073741824;
+		elseif ($unit === 'm') $maxSize *= 1048576;
+		elseif ($unit === 'k') $maxSize *= 1024;
+	} else {
+		$maxSize = 8 * 1024 * 1024;
+	}
+	if (isset($_SERVER['CONTENT_LENGTH']) && (int)$_SERVER['CONTENT_LENGTH'] > $maxSize) {
+		XMLRPC::sendFault(1, 'Request body too large');
+		exit;
+	}
+	$xml = file_get_contents('php://input', false, null, 0, $maxSize);
+	if (empty($xml)) {
 		XMLRPC::sendFault(1, 'Invalid Method Call');
 		exit;
 	}
-	
-	$xml = $GLOBALS['HTTP_RAW_POST_DATA'];
 
 	$blogApiFunctions = array(
 		"blogger.getUsersBlogs",

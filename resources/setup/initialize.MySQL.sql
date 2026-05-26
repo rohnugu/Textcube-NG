@@ -16,7 +16,8 @@ CREATE TABLE [##_dbPrefix_##]BlogSettings (
   blogid int(11) NOT NULL default '0',
   name varchar(32) NOT NULL default '',
   value text NOT NULL,
-  PRIMARY KEY (blogid, name)
+  PRIMARY KEY (blogid, name),
+  INDEX idx_name_value (name, value(64))
 ) [##_charset_##];
 CREATE TABLE [##_dbPrefix_##]BlogStatistics (
   blogid int(11) NOT NULL default '0',

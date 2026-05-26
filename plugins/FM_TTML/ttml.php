@@ -198,12 +198,43 @@ function FM_TTML_bindAttachments($entryId, $folderPath, $folderURL, $content, $u
 					$caption = '';
 				}
 				$buf .= '<div style="clear: both; text-align: center"><img src="' . ($useAbsolutePath ? $serviceURL : $service['path']) . '/resources/image/gallery/gallery_enlarge.gif" alt="' . _text('확대') . '" style="cursor:pointer" onclick="openFullScreen(\'' . $service['path'] . '/iMazing?d=' . urlencode($id) . '&f=' . urlencode($params['frame']) . '&t=' . urlencode($params['transition']) . '&n=' . urlencode($params['navigation']) . '&si=' . urlencode($params['slideshowinterval']) . '&p=' . urlencode($params['page']) . '&a=' . urlencode($params['align']) . '&o=' . $blogid . '&i=' . $imgStr . '\',\'' . htmlspecialchars(str_replace("'", "&#39;", $attributes[count($attributes) - 1])) . '\',\'' . $service['path'] . '\')" />';
-				$buf .= '<div id="iMazingContainer'.$id.'" class="iMazingContainer" style="width:'.$params['width'].'px; height:'.$params['height'].'px;"></div><script type="text/javascript">//<![CDATA['.CRLF;
-				$buf .= 'iMazing' . $id . 'Str = getEmbedCode(\'' . $service['path'] . '/resources/script/gallery/iMazing/main.swf\',\'100%\',\'100%\',\'iMazing' . $id . '\',\'#FFFFFF\',"image=' . $imgStr . '&amp;frame=' . $params['frame'] . '&amp;transition=' . $params['transition'] . '&amp;navigation=' . $params['navigation'] . '&amp;slideshowInterval=' . $params['slideshowinterval'] . '&amp;page=' . $params['page'] . '&amp;align=' . $params['align'] . '&amp;skinPath=' . $service['path'] . '/resources/script/gallery/iMazing/&amp;","false"); writeCode(iMazing' . $id . 'Str, "iMazingContainer'.$id.'");';
-				$buf .= '//]]></script><noscript>';
-				for ($i = 0; $i < count($imgs); $i += 2)
-				    $buf .= '<img src="'.($useAbsolutePath ? $serviceURL : $service['path']).'/attach/'.$blogid.'/'.$imgs[$i].'" alt="" />';
-				$buf .= '</noscript>';
+				$_galNav = (!empty($params['navigation']) && $params['navigation'] !== '0') ? true : false;
+				$_galInterval = !empty($params['slideshowinterval']) ? intval($params['slideshowinterval']) : 0;
+				if ($_galInterval > 0 && $_galInterval <= 100) $_galInterval *= 1000;
+				$_galStart = !empty($params['page']) ? max(0, intval($params['page']) - 1) : 0;
+				$_galBasePath = $useAbsolutePath ? $serviceURL : $service['path'];
+				$_cid = 'iMazingContainer' . $id;
+				$buf .= '<style>'
+					. '#' . $_cid . '{position:relative;overflow:hidden;background:#000;}'
+					. '#' . $_cid . ' img{position:absolute!important;top:0!important;left:0!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;object-fit:contain;opacity:0!important;transition:opacity 0.5s;}'
+					. '#' . $_cid . ' img.tc-gal-on{opacity:1!important;}'
+					. '#' . $_cid . ' button{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5)!important;color:#fff!important;border:none!important;font-size:1.5em;padding:4px 10px;cursor:pointer;z-index:10;}'
+					. '</style>';
+				$buf .= '<div id="' . $_cid . '" class="iMazingContainer" style="width:' . $params['width'] . 'px;height:' . $params['height'] . 'px;">';
+				$_galIdx = 0;
+				for ($i = 0; $i < count($imgs); $i += 2) {
+					if (!empty($imgs[$i])) {
+						$_galSrc = htmlspecialchars($_galBasePath . '/attach/' . $blogid . '/' . $imgs[$i], ENT_QUOTES, 'UTF-8');
+						$_galCls = ($_galIdx === $_galStart) ? ' class="tc-gal-on"' : '';
+						$buf .= '<img src="' . $_galSrc . '" alt=""' . $_galCls . ' />';
+						$_galIdx++;
+					}
+				}
+				if ($_galNav && $_galIdx > 1) {
+					$buf .= '<button onclick="tcGal_' . $id . '(-1)" style="left:4px;">&#8249;</button>'
+						. '<button onclick="tcGal_' . $id . '(1)" style="right:4px;">&#8250;</button>';
+				}
+				$buf .= '</div>';
+				if ($_galIdx > 0) {
+					$buf .= '<script>'
+						. '(function(){'
+						. 'var imgs=document.querySelectorAll(\'#' . $_cid . ' img\'),cur=' . $_galStart . ',total=imgs.length;'
+						. 'window.tcGal_' . $id . '=function(d){imgs[cur].classList.remove(\'tc-gal-on\');cur=(cur+d+total)%total;imgs[cur].classList.add(\'tc-gal-on\');};';
+					if ($_galInterval > 0)
+						$buf .= 'setInterval(function(){window.tcGal_' . $id . '(1);},' . $_galInterval . ');';
+					$buf .= '})();'
+						. '</script>';
+				}
 				$buf .= $caption . '</div>';
 			}
 		} else if ($attributes[0] == 'Jukebox') {
@@ -248,18 +279,48 @@ function FM_TTML_bindAttachments($entryId, $folderPath, $folderURL, $content, $u
 					$caption = '';
 				}
 
-				$buf .= '<div id="jukeBox' . $id . 'Div" style="margin-left: auto; margin-right: auto; width:' . $width . '; height:' . $height . ';"><div id="jukeBoxContainer'.$id.'" style="width:' . $width . '; height:' . $height . ';"></div>';
-				$buf .= '<script type="text/javascript">//<![CDATA['.CRLF;
-				$buf .= 'writeCode(getEmbedCode(\'' . $service['path'] . '/resources/script/jukebox/flash/main.swf\',\'100%\',\'100%\',\'jukeBox' . $id . 'Flash\',\'#FFFFFF\',"sounds=' . $imgStr . '&amp;autoplay=' . $params['autoplay'] . '&amp;visible=' . $params['visible'] . '&amp;id=' . $id . '","false"), "jukeBoxContainer'.$id.'")';
-				$buf .= '//]]></script><noscript>';
-				for ($i = 0; $i < count($imgs); $i++) {
-					if ($i % 2 == 0)
-						$buf .= '<a href="'.($useAbsolutePath ? $serviceURL : $service['path']).'/attach/'.$blogid.'/'.$imgs[$i].'">';
-					else
-						$buf .= htmlspecialchars($imgs[$i]).'</a><br/>';
+				$_jkAutoplay = (!empty($params['autoplay']) && $params['autoplay'] !== 'false' && $params['autoplay'] !== '0') ? ' autoplay' : '';
+				$_jkBasePath = $useAbsolutePath ? $serviceURL : $service['path'];
+				$_jkTracks = [];
+				for ($i = 0; $i < count($imgs); $i += 2) {
+					if (!empty($imgs[$i])) {
+						$_jkTracks[] = [
+							'url'  => htmlspecialchars($_jkBasePath . '/attach/' . $blogid . '/' . $imgs[$i], ENT_QUOTES, 'UTF-8'),
+							'name' => (isset($imgs[$i + 1]) && $imgs[$i + 1] !== '') ? htmlspecialchars($imgs[$i + 1], ENT_QUOTES, 'UTF-8') : htmlspecialchars(basename($imgs[$i]), ENT_QUOTES, 'UTF-8'),
+						];
+					}
 				}
-				$buf .= '</noscript>';
-				$buf .= '</div>';
+				if (count($_jkTracks) > 0) {
+					$buf .= '<div id="jukeBox' . $id . 'Div" style="margin-left:auto;margin-right:auto;">';
+					$buf .= '<audio id="jukeBoxAudio' . $id . '" controls' . $_jkAutoplay . ' style="width:100%;display:block;margin-bottom:4px">'
+						. '<source src="' . $_jkTracks[0]['url'] . '" />'
+						. '<a href="' . $_jkTracks[0]['url'] . '">' . $_jkTracks[0]['name'] . '</a>'
+						. '</audio>';
+					if (count($_jkTracks) > 1) {
+						$buf .= '<ul id="jukeBoxList' . $id . '" style="list-style:none;margin:0;padding:0;max-height:200px;overflow-y:auto;border:1px solid #ddd;border-radius:3px;">';
+						foreach ($_jkTracks as $_jkIdx => $_jkTrack) {
+							$_jkItemStyle = ($_jkIdx === 0) ? 'padding:5px 10px;cursor:pointer;border-bottom:1px solid #eee;background:#e8f0fe;font-weight:bold;' : 'padding:5px 10px;cursor:pointer;border-bottom:1px solid #eee;';
+							$buf .= '<li data-idx="' . $_jkIdx . '" style="' . $_jkItemStyle . '" onclick="jkPlay_' . $id . '(' . $_jkIdx . ')">'
+								. $_jkTrack['name'] . '</li>';
+						}
+						$buf .= '</ul>';
+					}
+					$_jkUrls = json_encode(array_column($_jkTracks, 'url'));
+					$buf .= '<script>'
+						. '(function(){'
+						. 'var a=document.getElementById(\'jukeBoxAudio' . $id . '\');'
+						. 'var ul=document.getElementById(\'jukeBoxList' . $id . '\');'
+						. 'var t=' . $_jkUrls . ',c=0;'
+						. 'window.jkPlay_' . $id . '=function(i){'
+						. 'c=i;a.src=t[i];a.load();a.play().catch(function(){});'
+						. 'if(ul){var li=ul.querySelectorAll(\'li\');'
+						. 'li.forEach(function(el,j){el.style.background=(j===i)?\'#e8f0fe\':\'\';el.style.fontWeight=(j===i)?\'bold\':\'\';});}'
+						. '};'
+						. 'if(a)a.addEventListener(\'ended\',function(){window.jkPlay_' . $id . '((c+1)%t.length);});'
+						. '})();'
+						. '</script>';
+					$buf .= '</div>';
+				}
 			}
 		} else {
 			$contentWidth = Misc::getContentWidth();
@@ -375,10 +436,7 @@ function FM_TTML_getAttachmentBinder($filename, $property, $folderPath, $folderU
 			return fireEvent('ViewAttachedImage', $imageStr, $path);
 			break;
 		case 'swf':
-			$id = md5($url) . rand(1, 10000);
-			if (($useAbsolutePath) && (strncasecmp($url, 'http://', 7) == 0)) $url = substr($url, 7);
-			return "<span id=\"$id\"><script type=\"text/javascript\">//<![CDATA[".CRLF.
-				"writeCode(getEmbedCode('$url','300','400','$id','#FFFFFF',''), \"$id\");//]]></script></span>";
+			return '<p class="system-message">' . _text('Flash 콘텐츠는 더 이상 지원되지 않습니다.') . '</p>';
 			break;
 		case 'wmv':case 'avi':case 'asf':case 'mpg':case 'mpeg':
 			$id = md5($url) . rand(1, 10000);
@@ -387,9 +445,8 @@ function FM_TTML_getAttachmentBinder($filename, $property, $folderPath, $folderU
 				"writeCode('<embed $property autostart=\"0\" src=\"$url\"></embed>', \"$id\")//]]></script></span>";
 			break;
 		case 'mp3':case 'mp2':case 'wma':case 'wav':case 'mid':case 'midi':
-			$id = md5($url) . rand(1, 10000);
-			if (($useAbsolutePath) && (strncasecmp($url, 'http://', 7) == 0)) $url = substr($url, 7);
-			return "<span id=\"$id\"><script type=\"text/javascript\">//<![CDATA[".CRLF."writeCode('<embed $property autostart=\"0\" height=\"45\" src=\"$url\"></embed>', \"$id\")//]]></script></span>";
+			$_audioUrl = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+			return '<audio controls style="width:100%;display:block;margin:4px 0"><source src="' . $_audioUrl . '" /><a href="' . $_audioUrl . '">' . htmlspecialchars($fileInfo['label'] ?? $filename, ENT_QUOTES, 'UTF-8') . '</a></audio>';
 			break;
 		case 'mov':
 			$id = md5($url) . rand(1, 10000);

@@ -18,6 +18,7 @@
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_Yadis_XMLParser {
     /**
      * Initialize an instance of Auth_Yadis_XMLParser with some
@@ -133,8 +134,9 @@ class Auth_Yadis_XMLParser {
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_Yadis_domxml extends Auth_Yadis_XMLParser {
-    function Auth_Yadis_domxml()
+    function __construct()
     {
         $this->xml = null;
         $this->doc = null;
@@ -216,8 +218,9 @@ class Auth_Yadis_domxml extends Auth_Yadis_XMLParser {
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_Yadis_dom extends Auth_Yadis_XMLParser {
-    function Auth_Yadis_dom()
+    function __construct()
     {
         $this->xml = null;
         $this->doc = null;

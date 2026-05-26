@@ -19,6 +19,7 @@ require_once 'Auth/OpenID/SAML.php';
  * The Attribute_Provider class which signs the attribute,value pair 
  * for a given openid.
  */
+#[AllowDynamicProperties]
 class Attribute_Provider
 {
    private $public_key_certificate=null;
@@ -42,7 +43,7 @@ class Attribute_Provider
     * @param string $acsURI - URI of the signer.
     * @param string $assertionTemplate - SAML template used for assertion
     */
-   function Attribute_Provider($public_key_certificate,$private_key,$notBefore,$notOnOrAfter,$rsadsa,$acsURI,
+   function __construct($public_key_certificate,$private_key,$notBefore,$notOnOrAfter,$rsadsa,$acsURI,
                                $assertionTemplate)
    {
       $this->public_key_certificate=$public_key_certificate;
@@ -79,6 +80,7 @@ class Attribute_Provider
 /**
  * The Attribute_Verifier class which verifies the signed assertion at the Relying party.
  */
+#[AllowDynamicProperties]
 class Attribute_Verifier
 {
    /**
@@ -109,6 +111,7 @@ class Attribute_Verifier
 /**
  * This is a Store Request creating class at the Attribute Provider.
  */
+#[AllowDynamicProperties]
 class AP_OP_StoreRequest
 {
    /**
@@ -146,6 +149,7 @@ class AP_OP_StoreRequest
  *This is implemented at the RP Takes care of getting the attribute from the 
  *AX_Fetch_Response object and verifying it.
  */
+#[AllowDynamicProperties]
 class RP_OP_Verify
 {
    /**

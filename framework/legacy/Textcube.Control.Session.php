@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 define( 'SESSION_OPENID_USERID', -1 );
 
@@ -88,6 +96,7 @@ final class Session {
 //			WHERE id = '$id' AND address = '{$_SERVER['REMOTE_ADDR']}'");
 			"WHERE id = '$id'");
 		self::gc();
+		return true;
 	}
 
 	public static function gc($maxLifeTime = false) {
@@ -103,7 +112,7 @@ final class Session {
 				self::query('query',"DELETE FROM ".self::$context->getProperty('database.prefix')."SessionVisits WHERE id = '{$g['id']}' AND address = '{$g['address']}'");
 			}
 		}
-		return true;
+		return 0;
 	}
 
 	private static function getAnonymousSession() {
@@ -130,7 +139,7 @@ final class Session {
 		for ($i = 0; $i < 3; $i++) {
 			if (($id = self::getAnonymousSession()) !== false)
 				return $id;
-			$id = dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF));
+			$id = dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF));
 			$result = self::query('count',"INSERT INTO ".self::$context->getProperty('database.prefix')."Sessions (id, address, server, request, referer, created, updated) VALUES('$id', '{$_SERVER['REMOTE_ADDR']}', '', '', '', ".Timestamp::getUNIXtime().",".(Timestamp::getUNIXtime() - $meet_again_baby).")");
 			if ($result > 0)
 				return $id;
@@ -222,12 +231,21 @@ final class Session {
 		if (self::isAuthorized(session_id()))
 			return true;
 		for ($i = 0; $i < 3; $i++) {
-			$id = dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF));
+			$id = dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF));
 			$result = self::query('execute',"INSERT INTO ".self::$context->getProperty('database.prefix')."Sessions
 				(id, address, userid, created, updated)
 				VALUES('$id', '{$_SERVER['REMOTE_ADDR']}', $userid, ".Timestamp::getUNIXtime().",".Timestamp::getUNIXtime().")");
 			if ($result) {
-				@session_id($id);
+				// PHP 7.4: session_id() cannot change the active session ID after session_start().
+				// Use session_write_close() to finalize the current session, then rotate to new ID.
+				// See: https://www.php.net/manual/en/function.session-id.php
+				$currentData = session_encode();
+				session_write_close();
+				session_id($id);
+				@session_start();
+				if ($currentData !== false) {
+					session_decode($currentData);
+				}
 				//$service['domain'] = $service['domain'].':8888';
 				setcookie( self::getName(), $id, 0, $session_cookie_path, self::$context->getProperty('service.session_cookie_domain'));
 				return true;

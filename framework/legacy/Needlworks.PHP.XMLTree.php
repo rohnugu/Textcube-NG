@@ -3,10 +3,11 @@
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 
+#[AllowDynamicProperties]
 class XMLTree {
 	var $tree, $error;
 	
-	function XMLTree($xml = null, $encoding = null) {
+	function __construct($xml = null, $encoding = null) {
 		if (!is_null($xml))
 			$this->open($xml, $encoding);
 	}
@@ -54,8 +55,8 @@ class XMLTree {
 		$c = &$this->tree;
 		while ($d = array_shift($p)) {
 			$o = 0;
-			if ($d{strlen($d) - 1} == ']') {
-				@list($d, $o) = split('\[', $d, 2);
+			if ($d[strlen($d) - 1] == ']') {
+				@list($d, $o) = explode('[', $d, 2);
 				if ($o === null) {
 					$ret = null;
 					return $ret;
@@ -154,7 +155,7 @@ class XMLTree {
 					$this->_xmlcontent .= $cursor['children'];
 				} else {
 					for($i = 0; $i < count($cursor['children']); $i++) {
-						$this->leap(&$cursor['children'][$i]);
+						$this->leap($cursor['children'][$i]);
 					}
 				}				
 			}
@@ -167,7 +168,7 @@ class XMLTree {
 		$this->_xmlcontent = '<?xml version="1.0" encoding="utf-8"?>';
 		if(isset($this->_cursor['children'])) {
 			for($i = 0; $i < count($this->_cursor['children']); $i++) {
-				$this->leap(&$this->_cursor['children'][$i]);
+				$this->leap($this->_cursor['children'][$i]);
 			}
 		}
 	}

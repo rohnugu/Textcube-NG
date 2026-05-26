@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 // DBQuery version 1.8 for MySQL improved.
 
@@ -11,6 +19,10 @@ class DBAdapter implements IAdapter {
 	static $db;
 	static $cachedResult, $dbProperties, $escapeTag, $lastQueryType;
 	public static function bind($database) {
+		// PHP 8.1+ changed default mysqli_report to MYSQLI_REPORT_ERROR|MYSQLI_REPORT_STRICT,
+		// which causes SQL errors to throw exceptions instead of returning false.
+		// Restore PHP 7.x-compatible behavior.
+		mysqli_report(MYSQLI_REPORT_OFF);
 		// Connects DB and set environment variables
 		// $database array should contain 'server','username','password'.
 		self::$cachedResult = self::$dbProperties = array();
@@ -300,7 +312,7 @@ class DBAdapter implements IAdapter {
 	public static function num_rows($handle = null) {
 		switch(self::$lastQueryType) {
 			case 'select':
-				return mysqli_num_rows($handle);
+				return $handle->num_rows;
 				break;
 			default:
 				return self::$db->affected_rows;
@@ -310,17 +322,17 @@ class DBAdapter implements IAdapter {
 	}
 
 	public static function free($handle = null) {
-		mysqli_free_result($handle);
+		$handle->free();
 	}
 
 	public static function fetch($handle = null, $type = 'assoc') {
-		if($type == 'array') return mysqli_fetch_array($handle); // Can I use mysqli_fetch_row instead?
-		else if ($type == 'row') return mysqli_fetch_row($handle);
-		else return mysqli_fetch_assoc($handle);
+		if($type == 'array') return $handle->fetch_array();
+		else if ($type == 'row') return $handle->fetch_row();
+		else return $handle->fetch_assoc();
 	}
 
 	public static function error($err = null) {
-		return mysqli_error($err);
+		return $err->error;
 	}
 
 	public static function stat($stat = null) {
@@ -353,5 +365,26 @@ class DBAdapter implements IAdapter {
         "mediumtext" => "mediumtext",
         "vartext" => "vartext",
         "text" => "text");
+
+/*** Prepared Statement API (v1.85, STAGE 2 — SQL Injection 대응) ***/
+	public static function prepare($query) {
+		return self::$db->prepare($query);
+	}
+
+	public static function bindAndExecute($stmt, $types, ...$params) {
+		$stmt->bind_param($types, ...$params);
+		return $stmt->execute();
+	}
+
+	public static function fetchAllStmt($stmt) {
+		$result = $stmt->get_result();
+		if ($result === false) return null;
+		$all = [];
+		while ($row = $result->fetch_assoc()) {
+			$all[] = $row;
+		}
+		$result->free();
+		return $all;
+	}
 }
 ?>

@@ -3,8 +3,9 @@
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 
+#[AllowDynamicProperties]
 class Pop3 {
-	function Pop3()
+	function __construct()
 	{
 		$this->ctx = null;
 		$this->logger = null;
@@ -26,15 +27,48 @@ class Pop3 {
 		call_user_func( $this->logger, $msg );
 	}
 
-	function connect( $server, $port = 110, $bSSL = false )
+	function connect( $server, $port = 110, $encryption = 'none' )
 	{
 		$this->clearStatus();
-		$this->ctx = fsockopen( $bSSL ? "ssl://$server" : $server, $port); 
-		if( !$this->ctx ) {
+		// backward compat: true/1 → 'ssl', false/0/null → 'none'
+		if ($encryption === true  || $encryption === 1)  $encryption = 'ssl';
+		elseif ($encryption === false || $encryption === 0 || $encryption === null) $encryption = 'none';
+
+		// verify_peer: 인증서 체인 유효성 검사 (유지)
+		// verify_peer_name: CN/호스트명 일치 검사 — 메일 서버는 공유 인증서로 CN이
+		// 접속 주소와 다른 경우가 흔하므로 비활성화
+		$sslCtx = stream_context_create(['ssl' => [
+			'verify_peer'      => true,
+			'verify_peer_name' => false,
+			'SNI_enabled'      => true,
+		]]);
+		$addr = ($encryption === 'ssl') ? "ssl://$server:$port" : "tcp://$server:$port";
+		$this->ctx = @stream_socket_client($addr, $errno, $errstr, 30, STREAM_CLIENT_CONNECT, $sslCtx);
+		if (!$this->ctx) {
+			$last = error_get_last();
+			$detail = ($last && stripos($last['message'], 'stream_socket_client') !== false)
+				? preg_replace('/^.*stream_socket_client\(\):\s*/i', '', $last['message'])
+				: ($errstr ?: 'connection failed');
+			$this->error = "$detail ($errno)";
 			return false;
 		}
-		$line = fgets( $this->ctx, 1024 );
-		return $this->checkStatus( $line );
+		$line = fgets($this->ctx, 1024);
+		if (!$this->checkStatus($line)) return false;
+
+		if ($encryption === 'starttls') {
+			$this->log("Send: STLS");
+			if (!fputs($this->ctx, "STLS\r\n")) return false;
+			$line = fgets($this->ctx, 1024);
+			if (!$this->checkStatus($line)) return false;
+			if (!@stream_socket_enable_crypto($this->ctx, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+				$sslErr = '';
+				while (($e = openssl_error_string()) !== false) $sslErr .= ' ' . trim($e);
+				if (!$sslErr) { $last = error_get_last(); if ($last) $sslErr = $last['message']; }
+				$this->error = 'STARTTLS negotiation failed' . ($sslErr ? ": $sslErr" : '');
+				return false;
+			}
+		}
+		return true;
 	}
 
 	function authorize( $username, $password )
@@ -152,7 +186,7 @@ class Pop3 {
 		$this->uids = array();
 		$this->mails = array();
 		foreach( $this->results as $line ) {
-			list( $number, $uid ) = split( " ", $line );
+			list( $number, $uid ) = explode( " ", $line );
 			if( !empty($this->filterred[$number]) ) {
 				continue;
 			}
@@ -176,7 +210,7 @@ class Pop3 {
 		if( !$this->receiveResult(false) ) {
 			return false;
 		}
-		list( $total, $totalsize ) = split( " ", $this->status );
+		list( $total, $totalsize ) = explode( " ", $this->status );
 		if( $this->stat_callback ) {
 			if( !call_user_func( $this->stat_callback, $total, $totalsize ) ) {
 				return false;
@@ -195,7 +229,7 @@ class Pop3 {
 			return false;
 		}
 		foreach( $this->results as $line ) {
-			list( $number, $size ) = split( " ", $line );
+			list( $number, $size ) = explode( " ", $line );
 			if( !empty($this->filterred[$number]) ) {
 				continue;
 			}
@@ -352,11 +386,11 @@ class Pop3 {
 			if( !isset( $mail['date'] ) && preg_match( '/^Date:\s*(.*)/i', $line, $match ) ) {
 				$match[1] = str_replace( "Wen", "Wed", $match[1] ); /* SKT date header bug, #1036 */
 				$mail['date'] = strtotime( $match[1] );
-				$mail['date_string'] = strftime( "%Y-%m-%d", $mail['date'] );
-				$mail['time_string'] = strftime( "%H:%M:%S", $mail['date'] );
-				$mail['date_year'] =   strftime( "%Y", $mail['date'] );
-				$mail['date_month'] =  strftime( "%m", $mail['date'] );
-				$mail['date_day'] =    strftime( "%d", $mail['date'] );
+				$mail['date_string'] = date('Y-m-d', $mail['date']);
+				$mail['time_string'] = date('H:i:s', $mail['date']);
+				$mail['date_year'] =   date('Y', $mail['date']);
+				$mail['date_month'] =  date('m', $mail['date']);
+				$mail['date_day'] =    date('d', $mail['date']);
 			}
 			if( !isset( $mail['from'] ) && preg_match( '/^From:([^<]*)<(.*)>/i', $line, $match ) ) {
 				$mail['sender'] = trim($this->decode_header($match[1]));

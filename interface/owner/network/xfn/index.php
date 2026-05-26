@@ -2,12 +2,20 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 require ROOT . '/library/preprocessor.php';
 requireModel("blog.link");
 
 if( isset($_POST['usexfn']) ) {
 	updateXfn( $blogid, $_POST );
-	header( "Location: ${_SERVER['REQUEST_URI']}" );
+	header( "Location: {$_SERVER['REQUEST_URI']}" );
 }
 
 $page=1;
@@ -56,7 +64,7 @@ if (sizeof($links) > 0) {
 for ($i=0; $i<sizeof($links); $i++) {
 	$link = $links[$i];
 	$xfn = $link['xfn'];
-	$xfn_items = split( ' ', $xfn );
+	$xfn_items = explode( ' ', $xfn );
 
 	$check_me         =
 	$check_met        =

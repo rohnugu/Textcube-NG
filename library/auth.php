@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 function login($loginid, $password, $preKnownPassword = null) {
 	$ctx = Model_Context::getInstance();
@@ -40,9 +48,9 @@ function requireLogin() {
 		unset($_SESSION['refererURI']);
 	}
 	if (!empty($service['loginURL'])) {
-		header("Location: {$service['loginURL']}?requestURI=" . rawurlencode("$hostURL{$_SERVER['REQUEST_URI']}") . (isset($_GET['refererURI']) && !empty($_GET['refererURI']) ? "&refererURI=". rawurlencode($_GET['refererURI']) : ''));
+		header("Location: {$service['loginURL']}?requestURI=" . rawurlencode("{$hostURL}{$_SERVER['REQUEST_URI']}") . (isset($_GET['refererURI']) && !empty($_GET['refererURI']) ? "&refererURI=". rawurlencode($_GET['refererURI']) : ''));
 	} else {
-		$requestURI = rawurlencode("$hostURL{$_SERVER['REQUEST_URI']}") .  (isset($_GET['refererURI']) && !empty($_GET['refererURI']) ? "&refererURI=". rawurlencode($_GET['refererURI']) : '');
+		$requestURI = rawurlencode("{$hostURL}{$_SERVER['REQUEST_URI']}") .  (isset($_GET['refererURI']) && !empty($_GET['refererURI']) ? "&refererURI=". rawurlencode($_GET['refererURI']) : '');
 
 		header ("Location: $hostURL$blogURL/login?requestURI=" . $requestURI );
 	}
@@ -87,8 +95,12 @@ function requireOwnership() {
 }
 
 function requireStrictRoute() {
-	if (isset($_SERVER['HTTP_REFERER']) && ($url = parse_url($_SERVER['HTTP_REFERER'])) && ($url['host'] == $_SERVER['HTTP_HOST']))
-		return;
+	if (isset($_SERVER['HTTP_REFERER']) && ($url = parse_url($_SERVER['HTTP_REFERER']))) {
+		$refererHost = strtolower($url['host']);
+		$serverHost  = strtolower(explode(':', $_SERVER['HTTP_HOST'])[0]);
+		if ($refererHost === $serverHost)
+			return;
+	}
 	header('HTTP/1.1 412 Precondition Failed');
 	header('Content-Type: text/html');
 	header("Connection: close");
@@ -141,23 +153,22 @@ function validateAPIKey($blogid, $loginid, $key) {
 
 function isLoginId($blogid, $loginid) {
 	global $database;
-	$loginid = POD::escapeString($loginid);
-
-	// 팀블로그 :: 팀원 확인
-	$result = POD::queryCount("SELECT u.userid
+	// Prepared statement: blogid(i) loginid(s) — SQL Injection 대응 (v1.86)
+	$stmt = POD::prepare("SELECT u.userid
 			FROM {$database['prefix']}Users u,
 				{$database['prefix']}Privileges t
-			WHERE t.blogid = $blogid
-				AND u.loginid = '$loginid'
+			WHERE t.blogid = ?
+				AND u.loginid = ?
 				AND t.userid = u.userid");
-	// End TeamBlog
-	if ($result && $result === 1)
-		return true;
-	return false;
+	if (!$stmt) return false;
+	POD::bindAndExecute($stmt, 'is', (int)$blogid, (string)$loginid);
+	$rows = POD::fetchAllStmt($stmt);
+	$stmt->close();
+	return (count($rows) === 1);
 }
 
 function generatePassword() {
-	return strtolower(substr(base64_encode(rand(0x10000000, 0x70000000)), 3, 8));
+	return strtolower(substr(base64_encode(random_int(0x10000000, 0x70000000)), 3, 8));
 }
 
 function resetPassword($blogid, $loginid) {

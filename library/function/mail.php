@@ -2,13 +2,21 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 function encodeMail($str) {
 	return '=?utf-8?b?' . base64_encode($str) . '?=';
 }
 
 function sendEmail($senderName, $senderEmail, $name, $email, $subject, $message ) {
-	include_once( ROOT."/library/contrib/phpmailer/class.phpmailer.php" );
+	include_once( ROOT."/library/contrib/phpmailer/legacy_shim.php" );
 	$mail = new PHPMailer();
 	$mail->SetLanguage( 'en', ROOT."/library/contrib/phpmailer/language/" );
 	$mail->IsHTML(true);

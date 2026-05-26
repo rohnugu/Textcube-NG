@@ -36,6 +36,7 @@ require_once 'Auth/OpenID/Nonce.php';
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_OpenID_FileStore extends Auth_OpenID_OpenIDStore {
 
     /**
@@ -46,7 +47,7 @@ class Auth_OpenID_FileStore extends Auth_OpenID_OpenIDStore {
      * @param string $directory This is the directory to put the store
      * directories in.
      */
-    function Auth_OpenID_FileStore($directory)
+    function __construct($directory)
     {
         if (!Auth_OpenID::ensureDir($directory)) {
             trigger_error('Not a directory and failed to create: '
@@ -532,7 +533,7 @@ class Auth_OpenID_FileStore extends Auth_OpenID_OpenIDStore {
     {
         foreach (range(0, 4) as $i) {
             $name = $dir . strval(DIRECTORY_SEPARATOR) . strval(getmypid()) .
-                "-" . strval(rand(1, time()));
+                "-" . strval(random_int(1, PHP_INT_MAX));
             if (!mkdir($name, 0700)) {
                 return false;
             } else {

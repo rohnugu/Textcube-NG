@@ -116,7 +116,10 @@ global $memcache;
 $memcache = null;
 if($context->getProperty('service.memcached') == true):
 	$memcache = new Memcache;
-	$memcache->connect((!is_null($context->getProperty('memcached.server')) ? $context->getProperty('memcached.server') : 'localhost'));
+	$memcache->connect(
+		!is_null($context->getProperty('memcached.server')) ? $context->getProperty('memcached.server') : 'localhost',
+		!is_null($context->getProperty('memcached.port'))   ? (int) $context->getProperty('memcached.port')   : 11211
+	);
 endif;
 
 /** INITIALIZE : URI Parsing and specify parameters

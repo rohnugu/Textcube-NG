@@ -1,6 +1,7 @@
 <?php
+#[AllowDynamicProperties]
 class SubscriptionLog {
-	function SubscriptionLog() {
+	function __construct() {
 		$this->reset();
 	}
 

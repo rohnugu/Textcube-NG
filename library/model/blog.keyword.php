@@ -144,10 +144,10 @@ function bindKeywords($keywords, $content) {
 		}
 
 		if (++$i >= count($result)) break;
-		if ($result[$i]{0} == '<') {
+		if ($result[$i][0] == '<') {
 			// now we have delimeter pattern from $result[$i] to $result[$i+3]
 			$tagname = strtolower($result[$i+1]);
-			if ($result[$i]{1} == '/') {
+			if ($result[$i][1] == '/') {
 				// closing tag
 				$index = array_search($tagname, $stack);
 				if ($index === false) {

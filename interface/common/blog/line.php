@@ -4,16 +4,18 @@
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 
 
-if (isset($cache->contents)) {
+if (!doesHaveOwnership() && isset($cache->contents)) {
 	dress('line', $cache->contents, $view);
 } else if (isset($lines) && isset($skin)) {
+	global $blogURL;
 	$lineView = $skin->line;
 	$itemsView = '';
 	$printDate = '';
+	$isOwner = doesHaveOwnership();
 	foreach ($lines as $item) {
 		$time = Timestamp::getHumanReadable($item['created']);
 		if($item['root'] == 'default') $item['root'] = 'Textcube Line';
-		$itemsView .= str_replace(
+		$rendered = str_replace(
 			array(
 				'[##_line_rep_regdate_##]',
 				'[##_line_rep_content_##]',
@@ -30,6 +32,17 @@ if (isset($cache->contents)) {
 			),
 			$skin->lineItem
 		);
+		if ($isOwner) {
+			$toggleLabel = ($item['category'] === 'public') ? _t('비공개로') : _t('공개로');
+			$deleteLabel = _t('삭제');
+			$adminDd = '<dd class="tc-line-admin" data-id="'.intval($item['id']).'" data-category="'.htmlspecialchars($item['category']).'">'
+				.'<button class="tc-line-toggle" onclick="tcToggleLineCategory('.intval($item['id']).', this);return false;">'.htmlspecialchars($toggleLabel).'</button>'
+				.' <button class="tc-line-delete" onclick="tcDeleteLine('.intval($item['id']).');return false;">'.htmlspecialchars($deleteLabel).'</button>'
+				.'</dd>';
+			$rendered = preg_replace('|</dl>|', $adminDd.'</dl>', $rendered, 1);
+			$rendered = '<div class="tc-line-item" data-line-id="'.intval($item['id']).'">'.$rendered.'</div>';
+		}
+		$itemsView .= $rendered;
 	}
 	$itemsView = '<div id="line-content">'.CRLF.$itemsView.CRLF.'</div>';
 	dress('line_rep', $itemsView, $lineView);
@@ -50,9 +63,45 @@ if (isset($cache->contents)) {
 
 //	if(empty($lines)) $lineView = $lineView.CRLF.'[##_paging_line_##]';
 	
+	if ($isOwner) {
+		$lineView .= '<script type="text/javascript">'.CRLF
+			.'//<![CDATA['.CRLF
+			.'function tcToggleLineCategory(id, btn) {'.CRLF
+			.'  var ctrl = btn.parentNode;'.CRLF
+			.'  var currentCat = ctrl.getAttribute("data-category");'.CRLF
+			.'  var newCat = (currentCat === "public") ? "private" : "public";'.CRLF
+			.'  var xhr = new XMLHttpRequest();'.CRLF
+			.'  xhr.open("POST", "'.addslashes($blogURL).'/owner/entry/line/updateCategory/");'.CRLF
+			.'  xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");'.CRLF
+			.'  xhr.onload = function() {'.CRLF
+			.'    if (xhr.status === 200) {'.CRLF
+			.'      ctrl.setAttribute("data-category", newCat);'.CRLF
+			.'      btn.textContent = (newCat === "public") ? "'.addslashes(_t('비공개로')).'" : "'.addslashes(_t('공개로')).'";'.CRLF
+			.'    } else { alert("'.addslashes(_t('공개 설정을 변경할 수 없었습니다.')).'"); }'.CRLF
+			.'  };'.CRLF
+			.'  xhr.onerror = function() { alert("'.addslashes(_t('공개 설정을 변경할 수 없었습니다.')).'"); };'.CRLF
+			.'  xhr.send("id=" + id + "&category=" + newCat);'.CRLF
+			.'}'.CRLF
+			.'function tcDeleteLine(id) {'.CRLF
+			.'  if (!confirm("'.addslashes(_t('삭제하시겠습니까?')).'")) return;'.CRLF
+			.'  var xhr = new XMLHttpRequest();'.CRLF
+			.'  xhr.open("POST", "'.addslashes($blogURL).'/owner/entry/line/delete/");'.CRLF
+			.'  xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");'.CRLF
+			.'  xhr.onload = function() {'.CRLF
+			.'    if (xhr.status === 200) {'.CRLF
+			.'      var wrapper = document.querySelector(".tc-line-item[data-line-id=\"" + id + "\"]");'.CRLF
+			.'      if (wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);'.CRLF
+			.'    } else { alert("'.addslashes(_t('삭제할 수 없었습니다.')).'"); }'.CRLF
+			.'  };'.CRLF
+			.'  xhr.onerror = function() { alert("'.addslashes(_t('삭제할 수 없었습니다.')).'"); };'.CRLF
+			.'  xhr.send("id=" + id);'.CRLF
+			.'}'.CRLF
+			.'//]]>'.CRLF
+			.'</script>';
+	}
 	dress('line', $lineView, $view);
 	
-	if(isset($cache)) { 
+	if(!$isOwner && isset($cache)) {
 		$cache->contents = $lineView;
 		$cache->dbContents = $paging;
 		$cache->update();

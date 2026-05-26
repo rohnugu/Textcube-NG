@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 // Of course, BITWISE must be BITWISE! (2^)
 define( 'BITWISE_EDITOR', 0x1 );              // 00001
@@ -205,6 +213,7 @@ class Aco {
 	}
 }
 
+#[AllowDynamicProperties]
 class Acl {
 
 	function __construct() {
@@ -366,8 +375,9 @@ class Auth {
 
 	static function authenticate( $blogid, $loginid, $password, $blogapi = false ) {
 		global $database;
-		$session = array(); 
+		$session = array();
 		Acl::clearAcl();
+		$loginid_raw = $loginid;  // preserve raw value for prepared statement binding
 		$loginid = POD::escapeString($loginid);
 
 		$blogApiPassword = Setting::getBlogSettingGlobal("blogApiPassword", "");
@@ -380,7 +390,7 @@ class Auth {
 				$query->setQualifier('userid','equals',intval($userid));
 				$query->setQualifier('name','equals','AuthToken',true);
 				$authtoken = $query->getCell('value');
-				if (!empty($authtoken) && ($authtoken === $password)) {	// If user requested auth token, use it to confirm.
+				if (!empty($authtoken) && hash_equals($authtoken, $password)) {	// If user requested auth token, use it to confirm.
 					$session['userid'] = $userid;
 				} else {	// login with md5 hash
 					$secret = 'password = \'' . md5($password) . '\'';
@@ -395,7 +405,14 @@ class Auth {
 			$secret = 'password = \'' . md5($password) . '\'';
 		}
 		if ( empty($session) ) {
-			$session = POD::queryRow("SELECT userid, loginid, name FROM {$database['prefix']}Users WHERE loginid = '$loginid' AND $secret");
+			// prepared statement: loginid uses ? placeholder; $secret contains only MD5 hex strings (safe literal)
+			$stmt = POD::prepare("SELECT userid, loginid, name FROM {$database['prefix']}Users WHERE loginid = ? AND $secret");
+			if ($stmt) {
+				POD::bindAndExecute($stmt, 's', $loginid_raw);
+				$rows = POD::fetchAllStmt($stmt);
+				$session = (!empty($rows)) ? $rows[0] : null;
+				$stmt->close();
+			}
 		}
 		if ( empty($session) ) {
 			/* You should compare return value with '=== false' which checks with variable types*/

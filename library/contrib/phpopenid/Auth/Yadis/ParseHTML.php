@@ -20,6 +20,7 @@
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_Yadis_ParseHTML {
 
     /**
@@ -43,7 +44,7 @@ class Auth_Yadis_ParseHTML {
      */
     var $_attr_find = '\b([-\w]+)=(".*?"|\'.*?\'|.+?)[\/\s>]';
 
-    function Auth_Yadis_ParseHTML()
+    function __construct()
     {
         $this->_attr_find = sprintf("/%s/%s",
                                     $this->_attr_find,

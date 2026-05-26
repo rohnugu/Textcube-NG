@@ -41,6 +41,7 @@ require_once 'Auth/OpenID/HMAC.php';
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_OpenID_Association {
 
     /**
@@ -128,7 +129,7 @@ class Auth_OpenID_Association {
      * this time is 'HMAC-SHA1' and 'HMAC-SHA256', but new types may
      * be defined in the future.
      */
-    function Auth_OpenID_Association(
+    function __construct(
         $handle, $secret, $issued, $lifetime, $assoc_type)
     {
         if (!in_array($assoc_type,
@@ -522,8 +523,9 @@ function Auth_OpenID_getEncryptedNegotiator()
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_OpenID_SessionNegotiator {
-    function Auth_OpenID_SessionNegotiator($allowed_types)
+    function __construct($allowed_types)
     {
         $this->allowed_types = array();
         $this->setAllowedTypes($allowed_types);

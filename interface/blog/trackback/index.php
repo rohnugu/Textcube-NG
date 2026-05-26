@@ -14,12 +14,17 @@ $IV = array(
 	)
 );
 require ROOT . '/library/preprocessor.php';
+$suri['id'] = (int)$suri['id'];
 if(!Setting::getBlogSettingGlobal('acceptTrackbacks',0)) {
 	Respond::PrintResult(array('error' => 1, 'message' => 'The entry does not accept trackback'));
 	exit;	
 }
 
 $url = $_POST['url'];
+if (!empty($url) && !preg_match('/^https?:\/\//i', $url)) {
+	Respond::PrintResult(array('error' => 1, 'message' => 'Invalid URL'));
+	exit;
+}
 $title = !empty($_POST['title']) ? $_POST['title'] : '';
 $excerpt = !empty($_POST['excerpt']) ? $_POST['excerpt'] : '';
 $blog_name = !empty($_POST['blog_name']) ? $_POST['blog_name'] : '';

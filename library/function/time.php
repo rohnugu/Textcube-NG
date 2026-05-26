@@ -62,11 +62,11 @@ function addPeriod($period, $inc = 1) {
 	if (checkPeriod($period) !== false) {
 		switch (strlen($period)) {
 			case 4:
-				return strftime('%Y', mktime(0, 0, 0, 1, 1, $period + $inc));
+				return date('Y', mktime(0, 0, 0, 1, 1, $period + $inc));
 			case 6:
-				return strftime('%Y%m', mktime(0, 0, 0, substr($period, 4) + $inc, 1, substr($period, 0, 4)));
+				return date('Ym', mktime(0, 0, 0, substr($period, 4) + $inc, 1, substr($period, 0, 4)));
 			case 8:
-				return strftime('%Y%m%d', mktime(0, 0, 0, substr($period, 4, 2), substr($period, 6, 2) + $inc, substr($period, 0, 4)));
+				return date('Ymd', mktime(0, 0, 0, substr($period, 4, 2), substr($period, 6, 2) + $inc, substr($period, 0, 4)));
 		}
 	}
 	return false;

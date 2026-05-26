@@ -146,7 +146,7 @@ final class Po2php
 		fwrite( $ftarget, "msgstr \"\"\r\n" );
 		fwrite( $ftarget, "\"Project-Id-Version: PACKAGE VERSION\\n\"\r\n" );
 		fwrite( $ftarget, "\"Report-Msgid-Bugs-To: \\n\"\r\n" );
-		fwrite( $ftarget, "\"POT-Creation-Date: " .  strftime( "%Y-%m-%d %H:%M+0000" ) . "\\n\"\r\n" );
+		fwrite( $ftarget, "\"POT-Creation-Date: " .  date('Y-m-d H:i') . "+0000\\n\"\r\n" );
 		fwrite( $ftarget, "\"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n\"\r\n" );
 		fwrite( $ftarget, "\"Last-Translator: TEXTCUBE\\n\"\r\n" );
 		fwrite( $ftarget, "\"Language-Team: TEXTCUBE\\n\"\r\n" );

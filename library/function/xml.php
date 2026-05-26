@@ -145,7 +145,7 @@ function get_timestamp2() {
 
 function str_dbi_check($array) {
 	if (count($array)) {
-		while (list($key, $val) = each($array)) {
+		foreach ($array as $key => $val) {
 			$array[$key] = str_replace("'", "&#39;", $val);
 		}
 	}

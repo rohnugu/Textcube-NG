@@ -1,7 +1,8 @@
 <?php
+#[AllowDynamicProperties]
 class Pages {
 	/*@constructor@*/
-	function Pages() {
+	function __construct() {
 		$this->reset();
 	}
 	

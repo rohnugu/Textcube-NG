@@ -3,7 +3,7 @@
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 class Trackback {
-	function Trackback() {
+	function __construct() {
 		$this->reset();
 	}
 
@@ -171,7 +171,7 @@ class Trackback {
 }
 
 class Pingback {
-	function Pingback() {
+	function __construct() {
 		$this->reset();
 	}
 

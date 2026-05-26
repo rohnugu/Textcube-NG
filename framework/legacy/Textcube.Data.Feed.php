@@ -2,9 +2,17 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 class FeedGroup {
 	/*@static@*/
-	function getId($name, $add = false) {
+	static function getId($name, $add = false) {
 		$name = UTF8::lessenAsEncoding($name);
 		if (empty($name))
 			return 0;
@@ -27,7 +35,7 @@ class FeedGroup {
 	}
 
 	/*@static@*/
-	function getName($id) {
+	static function getName($id) {
 		if (!Validator::number($id, 0))
 			return null;
 		if ($id == 0)
@@ -40,8 +48,9 @@ class FeedGroup {
 	}
 }
 
+#[AllowDynamicProperties]
 class Feed {
-	function Feed() {
+	function __construct() {
 		$this->reset();
 	}
 
@@ -177,8 +186,9 @@ class Feed {
 	}
 }
 
+#[AllowDynamicProperties]
 class FeedItem {
-	function FeedItem() {
+	function __construct() {
 		$this->reset();
 	}
 

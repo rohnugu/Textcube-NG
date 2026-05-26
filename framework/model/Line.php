@@ -3,6 +3,7 @@
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 
+#[AllowDynamicProperties]
 final class Model_Line extends DBModel {
 	private $filter = array();
 
@@ -16,7 +17,7 @@ final class Model_Line extends DBModel {
 		return self::_getInstance(__CLASS__);
 	}
 		
-	public function reset($param = null) {
+	public function reset($table = null, $param = null) {
 		parent::reset('Lines');
 		$this->id = null;
 		$this->blogid = getBlogId();
@@ -51,10 +52,24 @@ final class Model_Line extends DBModel {
 			if(count($filter) == 3) {
 				$this->setQualifier($filter[0],$filter[1],$filter[2]);
 			} else {
-				$this->setQualifier($filter[0],$filter[1],$filter[2],$filter[3]);			
+				$this->setQualifier($filter[0],$filter[1],$filter[2],$filter[3]);
 			}
 		}
 		return $this->delete();
+	}
+
+	public function updateCategory() {
+		if(empty($this->filter)) return $this->error('Filter empty');
+		parent::reset('Lines');
+		foreach($this->filter as $filter) {
+			if(count($filter) == 3) {
+				$this->setQualifier($filter[0],$filter[1],$filter[2]);
+			} else {
+				$this->setQualifier($filter[0],$filter[1],$filter[2],$filter[3]);
+			}
+		}
+		$this->setAttribute('category', $this->category, true);
+		return $this->update();
 	}
 /// Methods for querying
 	public function get($fields = '*') {
@@ -109,6 +124,7 @@ final class Model_Line extends DBModel {
 			$template = $conditions['template'];
 			$d['created'] = Timestamp::getHumanReadable($d['created']);
 			if($d['root'] == 'default') $d['root'] = 'Textcube Line';
+			$d['category_toggle_label'] = ($d['category'] === 'public') ? _t('비공개로') : _t('공개로');
 			foreach($conditions['dress'] as $tag => $match) {
 				dress($tag, $d[$match],$template);
 			}

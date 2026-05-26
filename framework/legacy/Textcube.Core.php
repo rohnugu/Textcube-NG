@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 /* This component contains 'User', 'Blog' and 'Transaction' class. 
    NOTE : Classes described below are actually not object. Usually they are static.*/
@@ -111,7 +119,7 @@ class User {
 		if (!isset($userid) || empty($userid)) 
 			$userid = getUserId();
 		$info = unserialize(Setting::getUserSettingGlobal('userLinkInfo','',$userid));
-		if(is_null($info)) $info = array('type' => 'default'); 
+		if(!is_array($info)) $info = array('type' => 'default');
 		switch ($info['type']) {
 			case "external" :
 				$homepage = $info['url'];
@@ -255,7 +263,7 @@ class User {
 	}
 	
 	/*@static@*/
-	function remove($userid) {
+	static function remove($userid) {
 		global $database;
 		if ($userid == 1)
 			return false;
@@ -285,11 +293,11 @@ class User {
 	}
 	
 	static function __generatePassword() {
-		return strtolower(substr(base64_encode(rand(0x10000000, 0x70000000)), 3, 8));
+		return strtolower(substr(base64_encode(random_int(0x10000000, 0x70000000)), 3, 8));
 	}
 
 	/*@private static@*/
-	function __getMaxUserId() {
+	static function __getMaxUserId() {
 		global $database;
 		$maxId = POD::queryCell("SELECT max(userid) FROM {$database['prefix']}Users");
 		if($maxId) return $maxId;
@@ -299,7 +307,7 @@ class User {
 
 class Blog {
 	/*@static@*/
-	function changeOwner($blogid,$userid) {
+	static function changeOwner($blogid,$userid) {
 		global $database;
 		POD::execute("UPDATE {$database['prefix']}Privileges SET acl = 3 WHERE blogid = ".$blogid." and acl = " . BITWISE_OWNER);
 	
@@ -317,7 +325,7 @@ class Blog {
 	
 	/*@static@*/
 	/* TODO : remove model dependency (addBlog, sendInvitationMail) */
-	function addUser($email, $name, $comment, $senderName, $senderEmail) {
+	static function addUser($email, $name, $comment, $senderName, $senderEmail) {
 		requireModel('blog.user');
 		requireModel('blog.blogSetting');
 		global $database,$service,$blogURL,$hostURL,$user,$blog;
@@ -341,7 +349,7 @@ class Blog {
 	}
 
 	/*@static@*/
-	function deleteUser($blogid = null, $userid, $clean = true) {
+	static function deleteUser($blogid = null, $userid, $clean = true) {
 		global $database;
 		if ($blogid == null) {
 			$blogid = getBlogId();
@@ -361,7 +369,7 @@ class Blog {
 	}
 	
 	/*@static@*/
-	function changeACLofUser($blogid, $userid, $ACLtype, $switch) {  // Change user priviledge on the blog.
+	static function changeACLofUser($blogid, $userid, $ACLtype, $switch) {  // Change user priviledge on the blog.
 		global $database;
 		if(empty($ACLtype) || empty($userid))
 			return false;
@@ -397,7 +405,7 @@ class Blog {
 }
 
 class Transaction {
-	function pickle($data) {
+	public static function pickle($data) {
 		$pickle_dir = ROOT.DS."cache".DS."pickle".DS;
 		if( !isset( $_SESSION['pickle'] ) ) {
 			$_SESSION['pickle'] = array();
@@ -411,14 +419,14 @@ class Transaction {
 		return $tid;
 	}
 
-	function unpickle( $tid ) {
+	public static function unpickle( $tid ) {
 		$pickle_file = ROOT.DS."cache".DS."pickle".DS.$tid;
 		$data = unserialize(file_get_contents( $pickle_file ));
 		unlink( $pickle_file );
 		return $data;
 	}
 
-	function repickle( $tid, & $data ) {
+	public static function repickle( $tid, & $data ) {
 		if( empty($tid) ) {
 			return;
 		}
@@ -430,7 +438,7 @@ class Transaction {
 		file_put_contents( $pickle_dir.$tid, serialize($data) );
 	}
 
-	function taste( $tid ) {
+	public static function taste( $tid ) {
 		$pickle_file = ROOT.DS."cache".DS."pickle".DS.$tid;
 		if( !file_exists( $pickle_file ) ) {
 			return null;
@@ -439,15 +447,15 @@ class Transaction {
 		return $data;
 	}
 
-	function clear() {
+	public static function clear() {
 		return;
 	}
 
-	function gc() {
+	public static function gc() {
 		return;
 	}
 
-	function debug( $tid = null ) {
+	public static function debug( $tid = null ) {
 		return;
 	}
 }

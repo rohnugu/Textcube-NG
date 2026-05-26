@@ -30,10 +30,11 @@ function SB_Banner_withImage($parameters)
 		return htmlspecialchars($retval);
 	}
 	if (!isset($parameters['imgsrc']) || !isset($parameters['href'])) return '';
-	$imgsrc = $parameters['imgsrc'];
-	$refsrc = $parameters['href'];
-	
-	$retVal = '<a href="' . $refsrc . '" ><img src="' . $imgsrc . '" /></a>';
+	$imgSrc = htmlspecialchars($parameters['imgsrc'], ENT_QUOTES, 'UTF-8');
+	$refSrc = filter_var($parameters['href'], FILTER_VALIDATE_URL) !== false
+		? htmlspecialchars($parameters['href'], ENT_QUOTES, 'UTF-8') : '';
+
+	$retVal = '<a href="' . $refSrc . '" ><img src="' . $imgSrc . '" /></a>';
 	
 	return $retVal;
 }

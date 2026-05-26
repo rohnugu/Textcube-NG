@@ -5,6 +5,7 @@
 
 class URIError extends Exception {};
 
+#[AllowDynamicProperties]
 final class Model_URIHandler extends Singleton
 {
 	public $uri, $suri;
@@ -47,7 +48,21 @@ final class Model_URIHandler extends Singleton
 		} else {
 			if ($this->context->getProperty('type') == 'domain') {	// Domain-based service
 				if ($_SERVER['HTTP_HOST'] == $this->context->getProperty('domain')) {
-					$this->blogid = $defaultblogid;
+					// Root domain (no subdomain) — check configured behavior
+					$domainRootBehavior = $this->context->getProperty('domainRootBehavior');
+					if (empty($domainRootBehavior)) $domainRootBehavior = Setting::getServiceSettingGlobal('domainRootBehavior', '');
+					if ($domainRootBehavior === 'redirect') {
+						$redirectURL = $this->context->getProperty('domainRootRedirectURL');
+						if (empty($redirectURL)) $redirectURL = Setting::getServiceSettingGlobal('domainRootRedirectURL', '');
+						if (!empty($redirectURL)) { header('Location: ' . $redirectURL, true, 302); exit; }
+					} elseif ($domainRootBehavior === 'blog') {
+						$configBlogId = (int)$this->context->getProperty('domainRootBlogId');
+						if (!$configBlogId) $configBlogId = (int)Setting::getServiceSettingGlobal('domainRootBlogId', 0);
+						if ($configBlogId) $this->blogid = $configBlogId;
+					} elseif ($domainRootBehavior === '404') {
+						Respond::NotFoundPage();
+					}
+					if ($this->blogid === null) $this->blogid = $defaultblogid;
 				} else {
 					$domain = explode('.', $_SERVER['HTTP_HOST'], 2);
 					if ($domain[1] == $this->context->getProperty('domain')) {
@@ -57,15 +72,61 @@ final class Model_URIHandler extends Singleton
 						} else {
 							$this->blogid = $this->__getBlogIdBySecondaryDomain($_SERVER['HTTP_HOST']);
 						}
+					// Domain not matched — check configured mismatch behavior
+					if ($this->blogid === null) {
+						$domainMismatchBehavior = $this->context->getProperty('domainMismatchBehavior');
+						if (empty($domainMismatchBehavior)) $domainMismatchBehavior = Setting::getServiceSettingGlobal('domainMismatchBehavior', '');
+						if ($domainMismatchBehavior === 'redirect') {
+							$redirectURL = $this->context->getProperty('domainMismatchRedirectURL');
+							if (empty($redirectURL)) $redirectURL = Setting::getServiceSettingGlobal('domainMismatchRedirectURL', '');
+							if (!empty($redirectURL)) { header('Location: ' . $redirectURL, true, 302); exit; }
+						} elseif ($domainMismatchBehavior === 'blog') {
+							$configBlogId = (int)$this->context->getProperty('domainMismatchBlogId');
+							if (!$configBlogId) $configBlogId = (int)Setting::getServiceSettingGlobal('domainMismatchBlogId', 0);
+							if ($configBlogId) {
+								$this->blogid = $configBlogId;
+								$this->uri['isHostMismatch'] = true;
+							}
+						}
+						// '404' or unhandled: leave blogid null → outer null check triggers NotFoundPage
+					}
 				}
 			} else {	// Path-based service
 				if ($url == '/') {
+					// Priority 1: config.php $service['rootRedirectURL']
+					$rootRedirectURL = $this->context->getProperty('rootRedirectURL');
+					// Priority 2: DB setting managed via control/server
+					if (empty($rootRedirectURL)) {
+						$rootRedirectURL = Setting::getServiceSettingGlobal('rootRedirectURL', '');
+					}
+					if (!empty($rootRedirectURL)) {
+						header('Location: ' . $rootRedirectURL, true, 302);
+						exit;
+					}
+					// Priority 3: auto-redirect to first blog's path
+					$firstBlog = Setting::getBlogSettingsGlobal($defaultblogid);
+					if (!empty($firstBlog['name'])) {
+						$portStr = !is_null($this->context->getProperty('port')) ? ':' . $this->context->getProperty('port') : '';
+						$proto = $this->context->getProperty('useSSL', false) ? 'https://' : 'http://';
+						header('Location: ' . $proto . $this->context->getProperty('domain') . $portStr . $this->context->getProperty('path') . '/' . $firstBlog['name'] . '/', true, 302);
+						exit;
+					}
+					// Priority 4: fallback — serve default blog at root (original behavior)
 					$this->blogid = $defaultblogid;
 				} else if (preg_match('@^/+([^/]+)(.*)$@', $url, $matches)) {
 					$this->blogid = $this->__getBlogIdByName(strtok($matches[1],'?'));
 					if ($this->blogid === null) {
+						$pathNotFoundBehavior = $this->context->getProperty('pathNotFoundBehavior');
+						if (empty($pathNotFoundBehavior)) $pathNotFoundBehavior = Setting::getServiceSettingGlobal('pathNotFoundBehavior', '');
+						if ($pathNotFoundBehavior === 'redirect') {
+							$redirectURL = $this->context->getProperty('pathNotFoundRedirectURL');
+							if (empty($redirectURL)) $redirectURL = Setting::getServiceSettingGlobal('pathNotFoundRedirectURL', '');
+							if (!empty($redirectURL)) { header('Location: ' . $redirectURL, true, 302); exit; }
+						} elseif ($pathNotFoundBehavior === '404') {
+							Respond::NotFoundPage();
+						}
 						$this->blogid = $defaultblogid;
-						$this->uri['isStrictBlogURL']= false;
+						$this->uri['isStrictBlogURL'] = false;
 					}
 					$url = $matches[2];
 				} else {
@@ -128,7 +189,17 @@ final class Model_URIHandler extends Singleton
 			$this->uri['service'] = $this->context->getProperty('service.serviceURL');
 		}
 		if (!isset($this->uri['service'])) {
-			$this->uri['service'] = ($this->context->getProperty('service.useSSL',false) ? 'https://' : 'http://') . $this->context->getProperty('service.domain') . (!is_null($this->context->getProperty('service.port')) ? ':' . $this->context->getProperty('service.port') : '') . $this->context->getProperty('service.path');
+			$xfp = isset($_SERVER['HTTP_X_FORWARDED_PROTO']) ? strtolower(trim($_SERVER['HTTP_X_FORWARDED_PROTO'])) : '';
+			if ($xfp === 'https' || $xfp === 'http') {
+				$proto = $xfp;
+			} elseif (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+				$proto = 'https';
+			} elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
+				$proto = 'https';
+			} else {
+				$proto = 'http';
+			}
+			$this->uri['service'] = $proto . '://' . $_SERVER['HTTP_HOST'] . (!is_null($this->context->getProperty('service.port')) ? ':' . $this->context->getProperty('service.port') : '') . $this->context->getProperty('service.path');
 		}
 		$this->context->useNamespace('service');
 		switch ($this->context->getProperty('service.type')) {
@@ -176,6 +247,15 @@ final class Model_URIHandler extends Singleton
 				break;
 		}
 		$this->uri['host'] = ($this->context->getProperty('service.useSSL',false) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . (!is_null($this->context->getProperty('port')) ? ':' . $this->context->getProperty('port') : '');
+		if (!empty($this->uri['isHostMismatch'])) {
+			$canonicalProto = $this->context->getProperty('service.useSSL', false) ? 'https://' : 'http://';
+			$canonicalHost  = $blog['name'] . '.' . $this->context->getProperty('domain');
+			$portStr        = !is_null($this->context->getProperty('port')) ? ':' . $this->context->getProperty('port') : '';
+			$this->uri['host'] = $canonicalProto . $canonicalHost . $portStr;
+			if (is_null($this->context->getProperty('service.serviceURL'))) {
+				$this->uri['service'] = $canonicalProto . $canonicalHost . $portStr . $this->context->getProperty('service.path');
+			}
+		}
 		$this->uri['blog'] = $this->uri['path'].$this->__getFancyURLpostfix();
 		$this->uri['folder'] = rtrim($this->uri['blog'] . $suri['directive'], '/');
 		$this->uri['permalink'] = rtrim($this->uri['default'].rtrim($this->suri['directive'],'/').(empty($this->suri['id']) ? '/'.URL::encode($this->suri['value']) : '/'.$this->suri['id']),'/');

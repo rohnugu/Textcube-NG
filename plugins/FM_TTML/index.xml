@@ -23,5 +23,6 @@
 			<usedFor editor="modern" />
 			<usedFor editor="tinyMCE" />
 		</formatter>
+		<config manifestHandler="FM_TTML_ConfigHandler" />
 	</binding>
 </plugin>

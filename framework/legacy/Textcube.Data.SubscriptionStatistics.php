@@ -1,6 +1,7 @@
 <?php
+#[AllowDynamicProperties]
 class SubscriptionStatistics {
-	function SubscriptionStatistics() {
+	function __construct() {
 		$this->reset();
 	}
 
@@ -57,11 +58,10 @@ class SubscriptionStatistics {
 	}
 	
 	function add() {
-		if (!$query->hasAttribute('referred'))
-			$query->setAttribute('referred', 'UNIX_TIMESTAMP()');
-		
 		if (!$query = $this->_buildQuery())
 			return false;
+		if (!$query->hasAttribute('referred'))
+			$query->setAttribute('referred', 'UNIX_TIMESTAMP()');
 
 		if ($query->doesExist()) {
 			if (!$query->update())
@@ -86,7 +86,7 @@ class SubscriptionStatistics {
 	}
 	
 	/*@static@*/
-	function compile($host) {
+	static function compile($host) {
 		$instance = new SubscriptionStatistics();
 		$instance->host = $host;
 		$instance->count = 1;

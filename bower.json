@@ -1,24 +1,29 @@
 {
-  "name": "textcube",
-  "version": "1.10.7-rc.1",
+  "name": "textcube-ng",
+  "version": "1.10.10-php85.r1",
   "homepage": "https://github.com/Needlworks/Textcube",
   "authors": [
     "Needlworks <contact@needlworks.org>"
   ],
-  "description": "Textcube: Personalized web publishing platform with multi-user support.",
+  "description": "Textcube-NG: PHP 8.5 community fork of Textcube 1.10.10. Personalized web publishing platform with multi-user support.",
   "main": "setup.php",
   "ignore": [
-	  ".htaccess",
-	  "attach",
-	  "cache",
-	  "skin/blog/customize",
-	  "config.php"
+    ".htaccess",
+    "attach",
+    "cache",
+    "skin/blog/customize",
+    "config.php",
+    "nul",
+    ".user.ini",
+    "tmp",
+    "*.log"
   ],
   "keywords": [
     "Web",
     "Blog",
     "CMS",
-    "Textcube"
+    "Textcube",
+    "PHP8"
   ],
   "license": "GPL"
 }

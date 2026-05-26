@@ -87,8 +87,8 @@ function PN_Subscription_Default()
 										<td class="rank"><?php echo $i + 1;?></td>
 										<td class="aggregator"><?php
 		if($info['isRobot'])
-			echo '<span class="robot">'.$agent.'</span>';
-		else echo $agent;
+			echo '<span class="robot">'.htmlspecialchars($agent, ENT_QUOTES, 'UTF-8').'</span>';
+		else echo htmlspecialchars($agent, ENT_QUOTES, 'UTF-8');
 ?></td>
 										<td class="count"><?php echo $info["subscribers"];?>명</td>
 										<td class="subscribed"><?php echo Timestamp::formatDate($info["subscribed"]);?></td>
@@ -290,7 +290,7 @@ function getSubscriptionLogsWithPage($page, $count) {
 	global $database;
 	$blogid = getBlogId();
 	requireComponent( "Textcube.Model.Paging");
-	return Paging::fetch("SELECT ip, host, useragent, referred FROM {$database['prefix']}SubscriptionLogs WHERE blogid = $blogid ORDER BY referred DESC", $page, $count);
+	return Paging::fetch("SELECT ip, host, useragent, referred FROM {$database['prefix']}SubscriptionLogs WHERE blogid = ".(int)$blogid." ORDER BY referred DESC", $page, $count);
 }
 
 function getSubscriptionLogs() {

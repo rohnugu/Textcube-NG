@@ -8,7 +8,10 @@
  */
 
 class Cache_Memcache extends Singleton {
-	private static $memcache, $__namespace, $__value, $__qualifiers;
+	private $memcache;
+	private $__namespace;
+	private $__value;
+	private $__qualifiers;
 
 	public static function getInstance() {
 		return self::_getInstance(__CLASS__);
@@ -18,7 +21,10 @@ class Cache_Memcache extends Singleton {
 		$this->__qualifiers = array();
 		if($context->getProperty('service.memcached') == true):
 			$this->memcache = new Memcache;
-			$this->memcache->connect((!is_null($context->getProperty('memcached.server')) ? $context->getProperty('memcached.server') : 'localhost'));
+			$this->memcache->connect(
+				!is_null($context->getProperty('memcached.server')) ? $context->getProperty('memcached.server') : 'localhost',
+				!is_null($context->getProperty('memcached.port'))   ? (int) $context->getProperty('memcached.port')   : 11211
+			);
 		endif;
 	}
 	public function __destruct() {		
@@ -97,7 +103,7 @@ class Cache_Memcache extends Singleton {
 		if($renew !== false) $namehash = false;
 		else $namehash = $this->memcache->get($prefix);
 		if($namehash == false) {
-			$seed = dechex(rand(0x10000000, 0x7FFFFFFF)).dechex(rand(0x10000000, 0x7FFFFFFF));
+			$seed = dechex(random_int(0x10000000, 0x7FFFFFFF)).dechex(random_int(0x10000000, 0x7FFFFFFF));
 			$this->memcache->set($prefix,$seed);
 			return $seed;
 		} else {

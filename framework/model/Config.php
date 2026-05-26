@@ -4,7 +4,8 @@
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 
 final class Model_Config extends Singleton {
-	public $database, $service;
+	public $database, $service, $memcached;
+	private $settings, $backend_name;
 
 	public static function getInstance() {
 		return self::_getInstance(__CLASS__);
@@ -15,7 +16,7 @@ final class Model_Config extends Singleton {
 	}
 	
 	private function __basicConfigLoader($id) {
-		global $database, $service;	// For Legacy global variable support
+		global $database, $service, $memcached;	// For Legacy global variable support
 		$this->settings = array();
 		if (file_exists(ROOT.'/framework/id/load')) $id = trim(file_get_contents(ROOT.'/framework/id/load'));
 		require_once(ROOT.'/framework/id/'.$id.'/config.default.php');	// Loading default configuration
@@ -54,6 +55,7 @@ final class Model_Config extends Singleton {
 
 		$this->database = $database;
 		$this->service = $service;
+		$this->memcached = isset($memcached) ? $memcached : [];
 		$this->backend_name = isset($service['dbms']) ? $service['dbms'] : 'mysql';
 		$this->updateContext();
 	}
@@ -65,6 +67,7 @@ final class Model_Config extends Singleton {
 		} else {
 			$context->setProperty('backend_name',$this->backend_name);
 			$configs = array('database','service');
+			if (!empty($this->memcached)) $configs[] = 'memcached';
 		}
 		foreach ($configs as $namespace):
 			foreach ($this->$namespace as $k => $v):
@@ -81,6 +84,9 @@ final class Model_Config extends Singleton {
 				break;
 			case 'service':
 				$val = $this->service;
+				break;
+			case 'memcached':
+				$val = $this->memcached;
 				break;
 			default:
 				$val = $this->settings[$name];

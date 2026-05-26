@@ -19,6 +19,7 @@ $IV = array(
 require ROOT . '/library/preprocessor.php';
 
 $blogid = getBlogId();
+$suri['id'] = (int)$suri['id'];
 list($replier) = getCommentAttributes($blogid,$suri['id'],'replier');
 $comment = POD::queryRow("SELECT * FROM {$database['prefix']}Comments WHERE blogid = $blogid AND id = {$suri['id']}");
 $openid_identity = Acl::getIdentity('openid');
@@ -62,7 +63,7 @@ if (!empty($_POST['mode'])) {
 		} else {
 			loader = opener;
 		}
-		var obj = loader.document.getElementById("entry<?php echo $entryId;?>Comment");
+		var obj = loader.document.getElementById("entry<?php echo (int)$entryId;?>Comment");
 		obj.innerHTML = "<?php echo str_innerHTML($tempComments);?>";
 		obj = loader.document.getElementById("recentComments");
 		if(obj)
@@ -73,11 +74,11 @@ $commentCount = ($commentCount > 0) ? $commentCount : '';
 list($tempTag, $commentView) = getCommentCountPart($commentCount, $skin);
 ?>
 		try {
-			obj = loader.document.getElementById("commentCount<?php echo $entryId;?>");
+			obj = loader.document.getElementById("commentCount<?php echo (int)$entryId;?>");
 			if (obj != null) obj.innerHTML = "<?php echo str_innerHTML($commentView);?>";
 		} catch(e) { }
 		try {
-			obj = loader.document.getElementById("commentCountOnRecentEntries<?php echo $entryId;?>");
+			obj = loader.document.getElementById("commentCountOnRecentEntries<?php echo (int)$entryId;?>");
 			if (obj != null) obj.innerHTML = "<?php echo str_innerHTML(($commentCount > 0) ? '(' . $commentCount . ')' : '');?>";
 		} catch(e) { }
 		if (opener == null) {
@@ -170,7 +171,7 @@ list($tempTag, $commentView) = getCommentCountPart($commentCount, $skin);
 			loader = opener;
 		}
 		try {
-			var obj = loader.document.getElementById("entry<?php echo $entry['id'];?>Comment");
+			var obj = loader.document.getElementById("entry<?php echo (int)$entry['id'];?>Comment");
 			if (obj != null) {
 				obj.innerHTML = "<?php echo str_innerHTML($tempComments);?>";
 				var recentComment = loader.document.getElementById("recentComments");

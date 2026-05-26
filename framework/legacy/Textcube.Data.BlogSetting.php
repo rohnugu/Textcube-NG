@@ -2,8 +2,17 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
+#[AllowDynamicProperties]
 class BlogSetting {
-	function BlogSetting() {
+	function __construct() {
 		$this->reset();
 	}
 
@@ -160,7 +169,7 @@ class BlogSetting {
 	}
 	
 	/*@static@*/
-	function setTimezone($timezone) {
+	static function setTimezone($timezone) {
 		if (Timezone::set($timezone)) {
 			$setting = new BlogSetting();
 			$setting->timezone = $timezone;
@@ -169,7 +178,7 @@ class BlogSetting {
 	}
 
 	/*@static@*/
-	function validateName($name) {
+	static function validateName($name) {
 		return preg_match('/^[a-zA-Z0-9]+$/', $name);
 	}
 

@@ -15,12 +15,12 @@ function initializeCustomizableMap() {
 			minHeight:200, maxHeight:800,
 			handles:'e,s,w,se,sw'
 		})
-		.bind('resize', function(ev) {
-			map.checkResize();
+		.on('resize', function(ev) {
+			google.maps.event.trigger(map, 'resize');
 			$('#inputWidth').val($container.width());
 			$('#inputHeight').val($container.height());
 		})
-		.bind('scroll', function(ev) { ev.stopPropagation(); });
+		.on('scroll', function(ev) { ev.stopPropagation(); });
 	$('#toggleMarkerAddingMode')
 		.removeClass('toggled')
 		.click(function(ev) {
@@ -32,7 +32,7 @@ function initializeCustomizableMap() {
 			}
 		});
 	$('#queryLocation').click(queryLocation);
-	$('#inputQuery').bind('keypress', function(ev) { if (ev.which == 13) queryLocation(); });
+	$('#inputQuery').on('keypress', function(ev) { if (ev.which == 13) queryLocation(); });
 	$('#applyBasicSettings').click(function() {
 		var w = $('#inputWidth').val(), h = $('#inputHeight').val();
 		$container.width(w).height(h);
@@ -68,7 +68,7 @@ function initializeCustomizableMap() {
 		editor.command('Raw', '[##_GoogleMap|' + JSON.stringify(options) + '|_##]');
 		self.close();
 	});
-	icon_blue = new google.maps.MarkerImage(pluginURL + '/images/marker_blue.png');
+	icon_blue = {url: pluginURL + '/images/marker_blue.png'};
 }
 
 function queryLocation() {

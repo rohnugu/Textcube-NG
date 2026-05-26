@@ -14,12 +14,16 @@ foreach ($tempStyleFileList as $styleFile) {
 @ksort($styleFileList);
 unset($tempStyleFileList);
 
-// set current css.
-if (isset($_GET['style'])) {
+// set current css. — $_GET['style'] whitelist-validated against pre-built $styleFileList to block path traversal.
+$styleRelativePaths = array_map(function($fullPath) use ($skinSetting) {
+	return str_replace(__TEXTCUBE_SKIN_DIR__ . "/{$skinSetting['skin']}/", '', $fullPath);
+}, array_values($styleFileList));
+$tempKeys = array_keys($styleFileList);
+$currentStyleFile = !empty($tempKeys)
+	? str_replace(__TEXTCUBE_SKIN_DIR__."/{$skinSetting['skin']}/", '', $styleFileList[$tempKeys[0]])
+	: '';
+if (isset($_GET['style']) && in_array($_GET['style'], $styleRelativePaths, true)) {
 	$currentStyleFile = $_GET['style'];
-} else {
-	$tempKeys = array_keys($styleFileList);
-	$currentStyleFile = str_replace(__TEXTCUBE_SKIN_DIR__."/{$skinSetting['skin']}/", '', $styleFileList[$tempKeys[0]]);
 }
 
 $skin = '';
@@ -290,11 +294,11 @@ if (count($styleFileList) > 0) {
 		$tempFile = str_replace(__TEXTCUBE_SKIN_DIR__."/{$skinSetting['skin']}/", '', $styleFile);
 		if ($tempFile == $currentStyleFile) {
 ?>
-										<li class="selected"><a href="<?php echo $blogURL;?>/owner/skin/edit/?style=<?php echo $tempFile;?>" onclick="changeCSSFile(this, '<?php echo $tempFile;?>'); return false;"><strong><img src="<?php echo $serviceURL . $adminSkinSetting['skin'];?>/image/img_css_document_on.gif" alt="" /><?php echo basename($tempFile);?></strong></a></li>
+										<li class="selected"><a href="<?php echo $blogURL;?>/owner/skin/edit/?style=<?php echo rawurlencode($tempFile);?>" onclick="changeCSSFile(this, <?php echo htmlspecialchars(json_encode($tempFile), ENT_QUOTES, 'UTF-8');?>); return false;"><strong><img src="<?php echo $serviceURL . $adminSkinSetting['skin'];?>/image/img_css_document_on.gif" alt="" /><?php echo htmlspecialchars(basename($tempFile), ENT_QUOTES, 'UTF-8');?></strong></a></li>
 <?php
 		} else {
 ?>
-										<li><a href="<?php echo $blogURL;?>/owner/skin/edit/?style=<?php echo $tempFile;?>" onclick="changeCSSFile(this, '<?php echo $tempFile;?>'); return false;"><img src="<?php echo $serviceURL . $adminSkinSetting['skin'];?>/image/img_css_document_off.gif" alt="" /><?php echo basename($tempFile);?></a></li>
+										<li><a href="<?php echo $blogURL;?>/owner/skin/edit/?style=<?php echo rawurlencode($tempFile);?>" onclick="changeCSSFile(this, <?php echo htmlspecialchars(json_encode($tempFile), ENT_QUOTES, 'UTF-8');?>); return false;"><img src="<?php echo $serviceURL . $adminSkinSetting['skin'];?>/image/img_css_document_off.gif" alt="" /><?php echo htmlspecialchars(basename($tempFile), ENT_QUOTES, 'UTF-8');?></a></li>
 <?php
 		}
 		
@@ -317,7 +321,7 @@ if (count($styleFileList) > 0) {
 	if ($styleFilePerms >= 6) {
 ?>
 									<div class="button-box">
-										<input type="hidden" id="styleFileName" name="file" value="<?php echo $currentStyleFile;?>" />
+										<input type="hidden" id="styleFileName" name="file" value="<?php echo htmlspecialchars($currentStyleFile, ENT_QUOTES, 'UTF-8');?>" />
 										<input type="reset" class="reset-button input-button" value="<?php echo _t('되돌리기');?>" />
 										<input type="submit" class="save-button input-button" value="<?php echo _t('저장하기');?>" onclick="setSkin('style'); return false" />
 									</div>

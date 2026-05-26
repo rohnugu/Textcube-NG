@@ -59,6 +59,13 @@ if (empty($suri['id']) || !is_null($entry)) {
 
 	if(empty($suri['id'])) {
 		if ($id = addEntry($blogid, $entry)) {
+			// 새 글 저장 전 업로드된 parent=0 임시 첨부파일을 새 entryId로 이전
+			$pool = DBModel::getInstance();
+			$pool->reset('Attachments');
+			$pool->setAttribute('parent', $id);
+			$pool->setQualifier('blogid', 'equals', $blogid);
+			$pool->setQualifier('parent', 'equals', 0);
+			$pool->update();
 			fireEvent('AddPost', $id, $entry);
 			setBlogSetting('LatestEditedEntry_user'.getUserId(),$id);
 			$result = array();

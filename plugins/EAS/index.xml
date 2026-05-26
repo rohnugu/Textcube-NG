@@ -18,5 +18,6 @@
   <binding>
     <listener event="AddingTrackback" handler="FAS_AddingTrackback" />
     <listener event="AddingComment" handler="FAS_AddingComment" />
+    <config manifestHandler="EAS_ConfigHandler" />
   </binding>
 </plugin>

@@ -806,6 +806,13 @@
 	font-size                        : 12px;
 	padding                          : 20px;
 	width                            : 40%;
+	position                         : fixed !important;
+	top                              : 50% !important;
+	left                             : 50% !important;
+	-webkit-transform                : translate(-50%, -50%) !important;
+	transform                        : translate(-50%, -50%) !important;
+	margin                           : 0 !important;
+	box-sizing                       : border-box;
 }
 
 .ajax-popup-window form

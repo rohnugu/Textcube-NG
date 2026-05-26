@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 class pageCache {
 /*	var $name;
@@ -18,7 +26,7 @@ class pageCache {
 	var $absoluteFilePathOwner;
 	var $absoluteFilePathGuest;
 	var $error;*/
-	function pageCache($name = null){
+	function __construct($name = null){
 		$this->reset();
 		if($name != null) $this->name = $name;
 	}
@@ -180,7 +188,7 @@ class queryCache {
 	var $contents;
 	var $prefix;
 	var $error;*/
-	function queryCache($query = null, $prefix = null){
+	function __construct($query = null, $prefix = null){
 		$this->reset();
 		$this->query = $query;
 		$this->prefix = $prefix;
@@ -258,7 +266,7 @@ class queryCache {
 // blogSettings, ServiceSettings, activePlugins, etc..
 // Textcube will use it as global object.
 class globalCacheStorage extends pageCache {
-	function globalCacheStorage($blogid = null) {
+	function __construct($blogid = null) {
 		$this->_isChanged = false;
 		$this->_gCacheStorage = array();
 		if(is_null($blogid)) $this->_gBlogId = getBlogId();
@@ -298,7 +306,7 @@ class globalCacheStorage extends pageCache {
 }
 
 class CacheControl {
-	function flushAll($blogid = null) {
+	public static function flushAll($blogid = null) {
 		global $database;
 		if(empty($blogid)) $blogid = getBlogId();
 		
@@ -314,7 +322,7 @@ class CacheControl {
 		return true;
 	}
 	
-	function flushCategory($categoryId = null) {
+	public static function flushCategory($categoryId = null) {
 		global $database;
 
 		if(empty($categoryId)) $categoryId = '';
@@ -331,7 +339,7 @@ class CacheControl {
 		return true;
 	}
 
-	function flushAuthor($authorId = null) {
+	public static function flushAuthor($authorId = null) {
 		global $database;
 
 		if(empty($authorId)) $authorId = '';
@@ -347,7 +355,7 @@ class CacheControl {
 		return true;
 	}
 
-	function flushTag($tagId = null) {
+	public static function flushTag($tagId = null) {
 		global $database;
 
 		if(empty($tagId)) $tagId = '';
@@ -366,7 +374,7 @@ class CacheControl {
 		return true;
 	}
 
-	function flushKeyword($tagId = null) {
+	public static function flushKeyword($tagId = null) {
 		global $database;
 
 		if(empty($tagId)) $tagId = '';
@@ -381,7 +389,7 @@ class CacheControl {
 		return true;
 	}
 	
-	function flushEntry($entryId = null) {
+	public static function flushEntry($entryId = null) {
 		global $database;
 
 		if(empty($entryId)) $entryId = '';
@@ -408,7 +416,7 @@ class CacheControl {
 		unset($cache);
 		return true;
 	}
-	function flushRSS() {
+	public static function flushRSS() {
 		if (file_exists(__TEXTCUBE_CACHE_DIR__."/rss/".getBlogId().".xml"))
 			@unlink(__TEXTCUBE_CACHE_DIR__."/rss/".getBlogId().".xml");
 		CacheControl::flushCommentRSS();
@@ -416,7 +424,7 @@ class CacheControl {
 		CacheControl::flushResponseRSS();
 	}
 
-	function flushCommentRSS($entryId = null) {
+	public static function flushCommentRSS($entryId = null) {
 		global $database;
 
 		if(empty($entryId)) $entryId = '';
@@ -436,7 +444,7 @@ class CacheControl {
 		return true;
 	}
 	
-	function flushTrackbackRSS($entryId = null) {
+	public static function flushTrackbackRSS($entryId = null) {
 		global $database;
 
 		if(empty($entryId)) $entryId = '';
@@ -456,7 +464,7 @@ class CacheControl {
 		return true;
 	}
 		
-	function flushResponseRSS($entryId = null) {
+	public static function flushResponseRSS($entryId = null) {
 		global $database;
 
 		if(empty($entryId)) $entryId = '';
@@ -475,7 +483,7 @@ class CacheControl {
 		return true;
 	}
 
-	function flushCommentNotifyRSS() {
+	public static function flushCommentNotifyRSS() {
 		global $database;
 		$cache = pageCache::getInstance();
 		$cache->name = 'commentNotifiedRSS';
@@ -486,7 +494,7 @@ class CacheControl {
 		return true;
 	}
 
-	function flushItemsByPlugin($pluginName) {
+	public static function flushItemsByPlugin($pluginName) {
 		global $databases;
 
 		$xmls = new XMLStruct();
@@ -520,13 +528,13 @@ class CacheControl {
 			
 		}
 	}
-	function flushDBCache($prefix = null) {
+	public static function flushDBCache($prefix = null) {
 		global $database;
 		return POD::query("DELETE FROM {$database['prefix']}PageCacheLog
 			WHERE blogid = ".getBlogId()."
 			AND name like '%".(!empty($prefix) ? $prefix.'\\_' : '')."queryCache%'");
 	}
-	function purgeItems($items) {
+	public static function purgeItems($items) {
 		if(!empty($items)) {
 			$cache = pageCache::getInstance();
 			foreach($items as $item){
@@ -565,7 +573,7 @@ class MMCache{
 }
 
 class CodeCache {
-	function CodeCache() {
+	function __construct() {
 		$this->reset();
 	}
 	

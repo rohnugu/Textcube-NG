@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 function doesHaveOpenIDPriv( & $comment )
 {
@@ -459,6 +467,7 @@ function addComment($blogid, & $comment) {
 	}
 
 	$comment['homepage'] = stripHTML($comment['homepage']);
+	if (preg_match('/^\s*javascript\s*:/i', $comment['homepage'])) $comment['homepage'] = '';
 	$comment['name'] = UTF8::lessenAsEncoding($comment['name'], 80);
 	$comment['homepage'] = UTF8::lessenAsEncoding($comment['homepage'], 80);
 	$comment['comment'] = UTF8::lessenAsEncoding($comment['comment'], 65535);
@@ -474,46 +483,60 @@ function addComment($blogid, & $comment) {
 		if (!$result || $result == 0)
 			return false;
 	}
-	$parent = $comment['parent'] == null ? 'null' : $comment['parent'];
+	$parent = $comment['parent'] == null ? null : (int)$comment['parent'];
 	if ($user !== null) {
 		$comment['replier'] = getUserId();
-		$name = POD::escapeString($user['name']);
+		$nameVal = $user['name'];
 		$password = '';
-		$homepage = POD::escapeString($user['homepage']);
-		if( empty($homepage) && $openid ) { $homepage = POD::escapeString($openid); }
+		$homepageVal = $user['homepage'];
+		if (empty($homepageVal) && $openid) { $homepageVal = $openid; }
 	} else {
-		$comment['replier'] = 'null';
-		$name = POD::escapeString($comment['name']);
+		$comment['replier'] = null;
+		$nameVal = $comment['name'];
 		$password = empty($comment['password']) ? '' : md5($comment['password']);
-		$homepage = POD::escapeString($comment['homepage']);
+		$homepageVal = $comment['homepage'];
 	}
-	$comment0 = POD::escapeString($comment['comment']);
-	$filteredAux = ($filtered == 1 ? "UNIX_TIMESTAMP()" : 0);
+	$commentVal = $comment['comment'];
+	$filteredAux = ($filtered == 1 ? time() : 0);
 	$insertId = getCommentsMaxId() + 1;
-	$result = POD::query("INSERT INTO {$database['prefix']}Comments
+
+	// Prepared statement — INSERT with external user input (SQL Injection 대응)
+	$stmt = POD::prepare("INSERT INTO {$database['prefix']}Comments
 		(blogid,replier,id,openid,entry,parent,name,password,homepage,secret,comment,ip,written,isfiltered)
-		VALUES (
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(),?)");
+	if ($stmt) {
+		$replierVal = $comment['replier'];
+		$openidVal  = (string)$openid;
+		$entryVal   = (int)$comment['entry'];
+		$secretVal  = (int)$comment['secret'];
+		$ipVal      = (string)$comment['ip'];
+		// types: blogid(i) replier(i) id(i) openid(s) entry(i) parent(i) name(s) password(s) homepage(s) secret(i) comment(s) ip(s) isfiltered(i) = 13 params
+		POD::bindAndExecute($stmt, 'iiisiisssissi',
 			$blogid,
-			{$comment['replier']},
+			$replierVal,
 			$insertId,
-			'$openid',
-			{$comment['entry']},
+			$openidVal,
+			$entryVal,
 			$parent,
-			'$name',
-			'$password',
-			'$homepage',
-			{$comment['secret']},
-			'$comment0',
-			'{$comment['ip']}',
-			UNIX_TIMESTAMP(),
+			$nameVal,
+			$password,
+			$homepageVal,
+			$secretVal,
+			$commentVal,
+			$ipVal,
 			$filteredAux
-		)");
+		);
+		$result = $stmt->affected_rows > 0 || $stmt->errno === 0;
+		$stmt->close();
+	} else {
+		$result = false;
+	}
 	if ($result) {
 		$id = $insertId;
 		if($filtered != 1) {
 			CacheControl::flushCommentRSS($comment['entry']);
 			CacheControl::flushDBCache('comment');
-			if ($parent != 'null' && $comment['secret'] < 1) {
+			if ($parent !== null && $comment['secret'] < 1) {
 				$insertId = getCommentsNotifiedQueueMaxId() + 1;
 				POD::execute("INSERT INTO {$database['prefix']}CommentsNotifiedQueue
 						( blogid , id, commentid , sendstatus , checkdate , written )
@@ -551,24 +574,29 @@ function updateComment($blogid, $comment, $password) {
 	}
 
 	$comment['homepage'] = stripHTML($comment['homepage']);
+	if (preg_match('/^\s*javascript\s*:/i', $comment['homepage'])) $comment['homepage'] = '';
 	$comment['name'] = UTF8::lessenAsEncoding($comment['name'], 80);
 	$comment['homepage'] = UTF8::lessenAsEncoding($comment['homepage'], 80);
 	$comment['comment'] = UTF8::lessenAsEncoding($comment['comment'], 65535);
 
-	$setPassword = '';
+	$updatePassword = false;
+	$passwordVal = '';
 	if ($user !== null) {
 		$comment['replier'] = getUserId();
-		$name = POD::escapeString($user['name']);
-		$setPassword = 'password = \'\',';
-		$homepage = POD::escapeString($user['homepage']);
-		if( empty($homepage) && $openid ) { $homepage = POD::escapeString($openid); }
+		$nameVal = $user['name'];
+		$updatePassword = true;
+		$passwordVal = '';
+		$homepageVal = $user['homepage'];
+		if (empty($homepageVal) && $openid) { $homepageVal = $openid; }
 	} else {
-		$name = POD::escapeString($comment['name']);
-		if ($comment['password'] !== true)
-			$setPassword = 'password = \'' . (empty($comment['password']) ? '' : md5($comment['password'])) . '\', ';
-		$homepage = POD::escapeString($comment['homepage']);
+		$nameVal = $comment['name'];
+		if ($comment['password'] !== true) {
+			$updatePassword = true;
+			$passwordVal = empty($comment['password']) ? '' : md5($comment['password']);
+		}
+		$homepageVal = $comment['homepage'];
 	}
-	$comment0 = POD::escapeString($comment['comment']);
+	$commentVal = $comment['comment'];
 
 	$guestcomment = false;
 	if (POD::queryExistence("SELECT *
@@ -588,7 +616,7 @@ function updateComment($blogid, $comment, $password) {
 		}
 		else
 		{
-			if( empty($password) && $openid ) {
+			if (empty($password) && $openid) {
 				$wherePassword = ' AND openid = \'' . $openid . '\'';
 			} else {
 				$wherePassword = ' AND password = \'' . md5($password) . '\'';
@@ -596,22 +624,70 @@ function updateComment($blogid, $comment, $password) {
 		}
 	}
 
-	$replier = is_null($comment['replier']) ? 'NULL' : "'{$comment['replier']}'";
+	$replierVal = is_null($comment['replier']) ? null : (int)$comment['replier'];
 
-	$result = POD::query("UPDATE {$database['prefix']}Comments
+	// Prepared statement — UPDATE with external user input (SQL Injection 대응)
+	if ($updatePassword) {
+		// types: name(s) password(s) homepage(s) secret(i) comment(s) ip(s) isfiltered(i) replier(i) blogid(i) id(i)
+		$stmt = POD::prepare("UPDATE {$database['prefix']}Comments
 				SET
-					name = '$name',
-					$setPassword
-					homepage = '$homepage',
-					secret = {$comment['secret']},
-					comment = '$comment0',
-					ip = '{$comment['ip']}',
+					name = ?,
+					password = ?,
+					homepage = ?,
+					secret = ?,
+					comment = ?,
+					ip = ?,
 					written = UNIX_TIMESTAMP(),
-					isfiltered = {$comment['isfiltered']},
-					replier = {$replier}
-				WHERE blogid = $blogid
-					AND id = {$comment['id']} $wherePassword");
-	if($result) {
+					isfiltered = ?,
+					replier = ?
+				WHERE blogid = ?
+					AND id = ?" . $wherePassword);
+		if (!$stmt) return false;
+		// types: name(s) password(s) homepage(s) secret(i) comment(s) ip(s) isfiltered(i) replier(i) blogid(i) id(i) = 10 params
+		POD::bindAndExecute($stmt, 'sssissiiii',
+			$nameVal,
+			$passwordVal,
+			$homepageVal,
+			(int)$comment['secret'],
+			$commentVal,
+			(string)$comment['ip'],
+			(int)$comment['isfiltered'],
+			$replierVal,
+			(int)$blogid,
+			(int)$comment['id']
+		);
+	} else {
+		// types: name(s) homepage(s) secret(i) comment(s) ip(s) isfiltered(i) replier(i) blogid(i) id(i) = 9 params
+		$stmt = POD::prepare("UPDATE {$database['prefix']}Comments
+				SET
+					name = ?,
+					homepage = ?,
+					secret = ?,
+					comment = ?,
+					ip = ?,
+					written = UNIX_TIMESTAMP(),
+					isfiltered = ?,
+					replier = ?
+				WHERE blogid = ?
+					AND id = ?" . $wherePassword);
+		if (!$stmt) return false;
+		// types: name(s) homepage(s) secret(i) comment(s) ip(s) isfiltered(i) replier(i) blogid(i) id(i) = 9 params
+		POD::bindAndExecute($stmt, 'ssissiiii',
+			$nameVal,
+			$homepageVal,
+			(int)$comment['secret'],
+			$commentVal,
+			(string)$comment['ip'],
+			(int)$comment['isfiltered'],
+			$replierVal,
+			(int)$blogid,
+			(int)$comment['id']
+		);
+	}
+	$result = $stmt->affected_rows >= 0 && $stmt->errno === 0;
+	$stmt->close();
+
+	if ($result) {
 		CacheControl::flushCommentRSS($comment['entry']); // Assume blogid = current blogid.
 		CacheControl::flushDBCache('comment');
 		return true;
@@ -838,7 +914,7 @@ function trashCommentInOwner($blogid, $id) {
 
 function trashCommentInOwnerByIP($blogid, $ip) {
 	global $database;
-	$ids = POD::queryColumn("SELECT id FROM {$database['prefix']}Comments WHERE blogid = $blogid AND ip = '".$ip."'");
+	$ids = POD::queryColumn("SELECT id FROM {$database['prefix']}Comments WHERE blogid = $blogid AND ip = '".POD::escapeString($ip)."'");
 	foreach ($ids as $id) {
 		trashCommentInOwner($blogid, $id);
 	}

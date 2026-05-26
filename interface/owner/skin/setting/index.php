@@ -637,6 +637,35 @@ ob_end_clean();
 										</dl>
 									</fieldset>
 
+									<fieldset id="guestbook-setting-container" class="container">
+										<legend><?php echo _t('방명록 관련 조절');?></legend>
+<?php
+ob_start();
+?>
+
+												<select id="commentsOnGuestbook" name="commentsOnGuestbook">
+<?php
+for ($i = 1; $i <= 30; $i++) {
+	if ($i == $skinSetting['commentsOnGuestbook'])
+		$checked = ' selected="selected"';
+	else
+		$checked = '';
+?>
+													<option value="<?php echo $i;?>" <?php echo $checked;?>><?php echo $i;?></option>
+<?php
+}
+?>
+												</select>
+<?php
+$arg = ob_get_contents();
+ob_end_clean();
+?>
+										<dl class="line">
+											<dt><span class="label"><?php echo _t('쪽 당 방명록 수');?></span></dt>
+											<dd><?php echo _f('방명록 한 쪽 당 %1개 글을 표시합니다.', $arg);?></dd>
+										</dl>
+									</fieldset>
+
 									<fieldset id="tag-setting-container" class="container">
 										<legend><?php echo _t('태그 조절');?></legend>
 
@@ -680,35 +709,6 @@ ob_end_clean();
 										<dl id="tag-count-line" class="line">
 											<dt><span class="label"><?php echo _t('태그상자의 태그 수');?></span></dt>
 											<dd><?php echo _f('태그상자의 태그를 %1개 표시합니다.', $arg);?></dd>
-										</dl>
-									</fieldset>
-
-									<fieldset id="guestbook-setting-container" class="container">
-										<legend><?php echo _t('방명록 관련 조절');?></legend>
-<?php
-ob_start();
-?>
-
-												<select id="commentsOnGuestbook" name="commentsOnGuestbook">
-<?php
-for ($i = 1; $i <= 30; $i++) {
-	if ($i == $skinSetting['commentsOnGuestbook'])
-		$checked = ' selected="selected"';
-	else
-		$checked = '';
-?>
-													<option value="<?php echo $i;?>" <?php echo $checked;?>><?php echo $i;?></option>
-<?php
-}
-?>
-												</select>
-<?php
-$arg = ob_get_contents();
-ob_end_clean();
-?>
-										<dl class="line">
-											<dt><span class="label"><?php echo _t('쪽 당 방명록 수');?></span></dt>
-											<dd><?php echo _f('방명록 한 쪽 당 %1개 글을 표시합니다.', $arg);?></dd>
 										</dl>
 									</fieldset>
 									<div class="button-box">

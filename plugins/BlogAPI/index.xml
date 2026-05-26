@@ -20,5 +20,6 @@
   </requirements>
   <binding>
 	<tag name="SKIN_head_end" handler="AddRSD" />
+	<config manifestHandler="BlogAPI_ConfigHandler" />
   </binding>
 </plugin>

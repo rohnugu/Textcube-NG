@@ -148,10 +148,16 @@ function GMap_findLocationCallback(results, status, gmap, location_info, title, 
 function GMap_createMap(container, options) {
 	container.style.width = options.width + 'px';
 	container.style.height = options.height + 'px';
+	var mapTypeIds = {
+		'ROADMAP': google.maps.MapTypeId.ROADMAP,
+		'SATELLITE': google.maps.MapTypeId.SATELLITE,
+		'HYBRID': google.maps.MapTypeId.HYBRID,
+		'TERRAIN': google.maps.MapTypeId.TERRAIN
+	};
 	var map = new google.maps.Map(container, {
 		'center': new google.maps.LatLng(options.center.latitude, options.center.longitude),
 		'zoom': options.zoom,
-		'mapTypeId': eval('google.maps.MapTypeId.' + options.type) || google.maps.MapTypeId.ROADMAP,
+		'mapTypeId': mapTypeIds[options.type] || google.maps.MapTypeId.ROADMAP,
 		'mapTypeControl': true,
 		'scaleControl': true
 	});

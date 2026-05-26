@@ -16,7 +16,7 @@ $cache = pageCache::getInstance();
 if(!empty($suri['id'])) {
 	$categoryId = $suri['id'];
 	if(in_array($categoryId, getCategoryVisibilityList($blogid, 'private'))) return false;
-	$categotyTitle = getCategoryNameById($categoryId);
+	$categoryTitle = getCategoryNameById(getBlogId(), $categoryId);
 } else if (!empty($suri['value'])) {
  	$categoryId = getCategoryIdByLabel(getBlogId(), $suri['value']);
 	if(in_array($categoryId, getCategoryVisibilityList($blogid, 'private'))) return false;

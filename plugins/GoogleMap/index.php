@@ -19,10 +19,12 @@ function GoogleMap_Header($target) {
 	global $configVal, $pluginURL;
 	$config = Setting::fetchConfigVal($configVal);
 	if (!is_null($config)) {
-		$use_sensor = (isset($config['useSensor']) && $config['useSensor']) ? 'true' : 'false';
+		$apiKey    = isset($config['apiKey']) ? trim($config['apiKey']) : '';
+		$keyParam  = !empty($apiKey) ? '?key=' . htmlspecialchars($apiKey, ENT_QUOTES, 'UTF-8') : '';
+		$mapsJsSrc = 'https://maps.googleapis.com/maps/api/js' . $keyParam;
 		$target .= <<<EOS
 <link rel="stylesheet" type="text/css" href="$pluginURL/styles/common.css" />
-<script type="text/javascript" src="//maps.google.com/maps/api/js?sensor=$use_sensor"></script>
+<script type="text/javascript" src="$mapsJsSrc"></script>
 <script type="text/javascript" src="$pluginURL/scripts/common.js"></script>
 <script type="text/javascript">
 //<![CDATA[
@@ -37,20 +39,23 @@ EOS;
 function GoogleMap_AdminHeader($target) {
 	$ctx = Model_Context::getInstance();
 	$blogURL = $ctx->getProperty('uri.blog');
-	$serviceURL = $ctx->getProperty('uri.service');
 	global $pluginURL, $configVal;
 	if ($ctx->getProperty('suri.directive') == '/owner/entry/post' || $ctx->getProperty('suri.directive') == '/owner/entry/edit') {
-		$config = Setting::fetchConfigVal($configVal);
-		$use_sensor = $config['useSensor'] ? 'true' : 'false';
+		$config    = Setting::fetchConfigVal($configVal);
+		$apiKey    = isset($config['apiKey']) ? trim($config['apiKey']) : '';
+		$apiKeyJs  = htmlspecialchars($apiKey, ENT_QUOTES, 'UTF-8');
+		$keyParam  = !empty($apiKey) ? '?key=' . htmlspecialchars($apiKey, ENT_QUOTES, 'UTF-8') : '';
+		$mapsJsSrc = 'https://maps.googleapis.com/maps/api/js' . $keyParam;
 		$target .= <<<EOS
 <link rel="stylesheet" type="text/css" href="$pluginURL/styles/common.css" />
-<script type="text/javascript" src="//maps.google.com/maps/api/js?sensor=$use_sensor"></script>
+<script type="text/javascript" src="$mapsJsSrc"></script>
 <script type="text/javascript" src="$pluginURL/scripts/common.js"></script>
 <script type="text/javascript" src="$pluginURL/scripts/editor.js"></script>
 <script type="text/javascript">
 //<![CDATA[
 	var pluginURL = '$pluginURL';
 	var blogURL = '$blogURL';
+	var gMapApiKey = '$apiKeyJs';
 	var GMapOnLoadCallbacks = [];
 //]]>
 </script>
@@ -61,17 +66,15 @@ EOS;
 
 function GoogleMap_Footer($target) {
 	global $configVal, $pluginURL;
-	$ctx= Model_Context::getInstance();
+	$ctx = Model_Context::getInstance();
 	if ($ctx->getProperty('is_used')) {
 		$config = Setting::fetchConfigVal($configVal);
-		$use_sensor = $config['useSensor'] ? 'true' : 'false';
 		if (!is_null($config)) {
 			$target .= <<<EOS
 <script type="text/javascript">
 //<![CDATA[
 	(function($) {
 	$(document).ready(function() {
-		//STD.addUnloadEventListener(function(){GUnload();}); // not available in v3
 		var i;
 		for (i = 0; i < GMapOnLoadCallbacks.length; i++)
 			GMapOnLoadCallbacks[i]();
@@ -88,23 +91,21 @@ EOS;
 function GoogleMap_AdminFooter($target) {
 	global $configVal, $pluginURL;
 	$ctx = Model_Context::getInstance();
-	if ($ctx ->getProperty('is_used')) {
+	if ($ctx->getProperty('is_used')) {
 		$config = Setting::fetchConfigVal($configVal);
-		$use_sensor = $config['useSensor'] ? 'true' : 'false';
 		if (!is_null($config)) {
 			$target .= <<<EOS
 <script type="text/javascript">
 //<![CDATA[
 	(function($) {
 	$(document).ready(function() {
-		//STD.addUnloadEventListener(function(){GUnload();}); // not available in v3
 		var i;
 		for (i = 0; i < GMapOnLoadCallbacks.length; i++)
 			GMapOnLoadCallbacks[i]();
 	});
 	})(jQuery);
 //]]>
-</script>;
+</script>
 EOS;
 		}
 	}
@@ -138,15 +139,18 @@ EOS;
 
 function GoogleMap_View($target, $mother) {
 	global $configVal, $pluginURL;
-	$ctx= Model_Context::getInstance();
+	$ctx = Model_Context::getInstance();
 	if ($ctx->getProperty('is_used') === null)
 		$ctx->setProperty('is_used', false);
 	$dbPrefix = $ctx->getProperty('database.prefix');
-	$blogId = $ctx->getProperty('blog.id');
-	$config = Setting::fetchConfigVal($configVal);
-	$matches = array();
-	$offset = 0;
-
+	$blogId   = $ctx->getProperty('blog.id');
+	$config   = Setting::fetchConfigVal($configVal);
+	$apiKey   = isset($config['apiKey']) ? trim($config['apiKey']) : '';
+	// API 키 파라미터 — URL 내 & 는 HTML 속성 외부(JS/src)에서 사용되므로 urlencode만 적용
+	$apiKeyParam     = !empty($apiKey) ? '&key=' . urlencode($apiKey) : '';
+	$apiKeyParamHtml = !empty($apiKey) ? '&amp;key=' . htmlspecialchars($apiKey, ENT_QUOTES, 'UTF-8') : '';
+	$matches  = array();
+	$offset   = 0;
 
 	while (preg_match('/\[##_GoogleMap\|(([^|]+)\|)?_##\]/', $target, $matches, PREG_OFFSET_CAPTURE, $offset) > 0) {
 		$ctx->setProperty('is_used', true);
@@ -156,7 +160,6 @@ function GoogleMap_View($target, $mother) {
 
 		// Mobile & iPhone (differences between these will be handled later.)
 		if (defined('__TEXTCUBE_MOBILE__') || defined('__TEXTCUBE_IPHONE__')) {
-			$staticimg = "//maps.google.co.kr/staticmap?";
 			$json = json_decode($matches[2][0], true);
 			switch ($json['type']) {
 			case 'G_SATELLITE_MAP':
@@ -185,8 +188,8 @@ function GoogleMap_View($target, $mother) {
 					$markers .= '|';
 				$markers .= "{$json['user_markers'][$i]['lat']},{$json['user_markers'][$i]['lng']}";
 			}
-			$use_sensor = $config['useSensor'] ? 'true' : 'false';
-			echo "<div class=\"googlemap\"><img src=\"{$staticimg}center={$json['center']['latitude']},{$json['center']['longitude']}&amp;zoom={$json['zoom']}&amp;size={$json['width']}x{$json['height']}&amp;maptype={$maptype}&amp;format={$imgformat}&amp;markers={$markers}&amp;sensor={$use_sensor}\"title=\"{$json['user_markers'][0]['title']} - {$json['user_markers'][0]['desc']}\" alt=\"User-inserted Map\" /></div>";
+			$imgSrc = "https://maps.googleapis.com/maps/api/staticmap?center={$json['center']['latitude']},{$json['center']['longitude']}&amp;zoom={$json['zoom']}&amp;size={$json['width']}x{$json['height']}&amp;maptype={$maptype}&amp;format={$imgformat}&amp;markers={$markers}{$apiKeyParamHtml}";
+			echo "<div class=\"googlemap\"><img src=\"{$imgSrc}\" title=\"{$json['user_markers'][0]['title']} - {$json['user_markers'][0]['desc']}\" alt=\"User-inserted Map\" /></div>";
 		}
 		// Desktop
 		else {
@@ -210,10 +213,12 @@ function GoogleMap_View($target, $mother) {
 	// Check if location is attached to this post.
 	$row = POD::queryRow("SELECT latitude, longitude FROM {$dbPrefix}Entries WHERE blogid = {$blogId} AND id = {$mother}");
 	if ($row['latitude'] && $row['longitude']) {
+		$staticUrl  = "https://maps.googleapis.com/maps/api/staticmap?center={$row['latitude']},{$row['longitude']}&amp;zoom=12&amp;size=260x120&amp;maptype=roadmap&amp;markers=color:red|size:small|{$row['latitude']},{$row['longitude']}{$apiKeyParamHtml}";
+		$mapsLink   = "https://maps.google.com/maps?iwloc=exact&amp;q={$row['latitude']},{$row['longitude']}&amp;z=15";
 		$target .= <<<EOS
 <div class="googlemap-geolocation-attached">
 	<h5>Location</h5>
-	<a href="//maps.google.com/maps?iwloc=exact&amp;q={$row['latitude']},{$row['longitude']}&amp;z=15"><img src="//maps.google.com/maps/api/staticmap?center={$row['latitude']},{$row['longitude']}&zoom=12&size=260x120&maptype=roadmap&sensor=true&markers=color:red|size:small|{$row['latitude']},{$row['longitude']}" /></a>
+	<a href="$mapsLink"><img src="$staticUrl" /></a>
 </div>
 EOS;
 	}
@@ -222,20 +227,20 @@ EOS;
 
 function GoogleMap_LocationLogView($target) {
 	$ctx = Model_Context::getInstance();
-	$blogId = $ctx->getProperty('blog.id');
-	$blogURL = $ctx->getProperty('uri.blog');
+	$blogId     = $ctx->getProperty('blog.id');
+	$blogURL    = $ctx->getProperty('uri.blog');
 	$serviceURL = $ctx->getProperty('uri.service');
 	global $pluginURL, $configVal;
 	$ctx->setProperty('is_used', true);
-	$config = Setting::fetchConfigVal($configVal);
-	$locatives =  getEntries($blogId, 'id, title, slogan, location, longitude, latitude','(length(location)>1 AND category > -1) OR (`longitude` IS NOT NULL AND `latitude` IS NOT NULL)', 'location');
-	$width = Misc::getContentWidth();
-	$height = intval($width * 1.2);
+	$config       = Setting::fetchConfigVal($configVal);
+	$locatives    = getEntries($blogId, 'id, title, slogan, location, longitude, latitude','(length(location)>1 AND category > -1) OR (`longitude` IS NOT NULL AND `latitude` IS NOT NULL)', 'location');
+	$width        = Misc::getContentWidth();
+	$height       = intval($width * 1.2);
 	$default_type = isset($config['locative_maptype']) ? _GMap_convertLegacyMapType($config['locative_maptype']) : 'ROADMAP';
-	$id = 'LocationMap';
-	$lat = $config['latitude'];
-	$lng = $config['longitude'];
-	$zoom = 10;
+	$id           = 'LocationMap';
+	$lat          = $config['latitude'];
+	$lng          = $config['longitude'];
+	$zoom         = 10;
 	ob_start();
 ?>
 	<div style="text-align:center;">
@@ -333,7 +338,6 @@ function GoogleMap_ConfigHandler($data) {
 	if (!is_numeric($config['latitude']) || !is_numeric($config['longitude']) ||
 		$config['latitude'] < -90 || $config['latitude'] > 90 || $config['longitude'] < -180 || $config['longitude'] > 180)
 		return _t('위도 또는 경도의 값이 올바르지 않습니다.');
-	$config['useSensor'] = !isset($config['useSensor']) ? true : false;
 	return true;
 }
 
@@ -370,13 +374,14 @@ function GoogleMap_Cache() {
 function GoogleMapUI_InsertMap() {
 	global $configVal, $pluginURL;
 	$config = Setting::fetchConfigVal($configVal);
+	$apiKey = isset($config['apiKey']) ? trim($config['apiKey']) : '';
 	$lat = $config['latitude'];
 	$lng = $config['longitude'];
 	$default_type = 'ROADMAP';
 	$default_width = min(Misc::getContentWidth(), 500);
 	$default_height = 400;
 	$zoom = 10;
-	_GMap_printHeaderForUI(_t('구글맵 삽입하기'), 'insert', $config['useSensor'] ? 'true' : 'false');
+	_GMap_printHeaderForUI(_t('구글맵 삽입하기'), 'insert', $apiKey);
 ?>
 	<div id="controls">
 		<button id="toggleMarkerAddingMode"><?php echo _t("마커 표시 모드");?></button>
@@ -416,10 +421,13 @@ function GoogleMapUI_InsertMap() {
 	_GMap_printFooterForUI('insert');
 }
 
-function _GMap_printHeaderForUI($title, $jsName, $use_sensor) {
+function _GMap_printHeaderForUI($title, $jsName, $apiKey) {
 	$ctx = Model_Context::getInstance();
 	$blogURL = $ctx->getProperty('uri.blog');
 	global $pluginURL;
+	$apiKeyJs  = htmlspecialchars($apiKey, ENT_QUOTES, 'UTF-8');
+	$keyParam  = !empty($apiKey) ? '?key=' . htmlspecialchars($apiKey, ENT_QUOTES, 'UTF-8') : '';
+	$mapsJsSrc = 'https://maps.googleapis.com/maps/api/js' . $keyParam;
 	header('Content-Type: text/html; charset=utf-8');
 ?><!DOCTYPE html>
 <html>
@@ -428,15 +436,17 @@ function _GMap_printHeaderForUI($title, $jsName, $use_sensor) {
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 	<title>Google Map Plugin: <?php echo $title;?></title>
 	<link rel="stylesheet" type="text/css" href="<?php echo $pluginURL;?>/styles/popup.css">
-	<script type="text/javascript" src="//code.jquery.com/jquery-1.11.2.min.js"></script>
-	<script type="text/javascript" src="//code.jquery.com/ui/1.11.2/jquery-ui.min.js"></script>
-	<script type="text/javascript" src="//maps.google.com/maps/api/js?sensor=true"></script>
+	<link rel="stylesheet" type="text/css" href="https://code.jquery.com/ui/1.13.3/themes/base/jquery-ui.min.css">
+	<script type="text/javascript" src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+	<script type="text/javascript" src="https://code.jquery.com/ui/1.13.3/jquery-ui.min.js"></script>
+	<script type="text/javascript" src="<?php echo $mapsJsSrc;?>"></script>
 	<script type="text/javascript" src="<?php echo $pluginURL;?>/scripts/common.js"></script>
 	<script type="text/javascript" src="<?php echo $pluginURL;?>/scripts/<?php echo $jsName;?>.js"></script>
 	<script type="text/javascript">
 	//<![CDATA[
 	var pluginURL = '<?php echo $pluginURL;?>';
 	var blogURL = '<?php echo $blogURL;?>';
+	var gMapApiKey = '<?php echo $apiKeyJs;?>';
 	var GMapOnLoadCallbacks = [];
 	//]]>
 	</script>
@@ -455,7 +465,6 @@ function _GMap_printFooterForUI($jsName) {
 	//<![CDATA[
 	(function($) {
 	$(document).ready(function() {
-		//$(window).unload(function() {GUnload();}); // not available in v3
 		var i;
 		for (i = 0; i < GMapOnLoadCallbacks.length; i++)
 			GMapOnLoadCallbacks[i]();

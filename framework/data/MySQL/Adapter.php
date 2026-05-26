@@ -2,225 +2,225 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
-// DBQuery version 1.8 for MySQL
+// DBQuery version 1.8 for MySQL (PHP 7.4+ compatible — uses mysqli internally)
+// PHP 7.0 removed ext/mysql. This adapter now delegates all operations to the
+// mysqli extension while preserving the 'MySQL' adapter identity for config compatibility.
 
 global $fileCachedResult;
 
 class DBAdapter implements IAdapter {
-	static $db = null;
+	static $db;
 	static $cachedResult, $dbProperties, $escapeTag, $lastQueryType;
-		
-	/*@static@*/
+
 	public static function bind($database) {
 		self::$cachedResult = self::$dbProperties = array();
-		// Connects DB and set environment variables
-		// $database array should contain 'server','username','password'.
-		if(!isset($database) || empty($database)) return false;
-		self::$db = @mysql_connect($database['server'].(isset($database['port']) ? ':'.intval($database['port']) : ''), $database['username'], $database['password']);
-		if(!self::$db) return false;
-		self::$db = @mysql_select_db($database['database']);
-		if(!self::$db) return false;
-
-		if (self::query('SET CHARACTER SET utf8'))
+		if (!isset($database) || empty($database)) return false;
+		if (!isset($database['port']) && strpos($database['server'], ':')) {
+			$port = explode(':', $database['server']);
+			$database['server'] = $port[0];
+			$database['port']   = $port[1];
+		}
+		if (isset($database['port'])) {
+			self::$db = new mysqli(
+				$database['server'], $database['username'],
+				$database['password'], $database['database'],
+				intval($database['port'])
+			);
+		} else {
+			self::$db = new mysqli(
+				$database['server'], $database['username'],
+				$database['password'], $database['database']
+			);
+		}
+		if (!self::$db || self::$db->connect_errno) return false;
+		if (!self::$db->select_db($database['database']))
+			die('Connection error: ' . self::$db->connect_errno . ' - ' . self::$db->connect_error);
+		self::$db->autocommit(true);
+		if (self::$db->set_charset('utf8'))
 			self::$dbProperties['charset'] = 'utf8';
 		else
 			self::$dbProperties['charset'] = 'default';
 		@self::query('SET SESSION collation_connection = \'utf8_general_ci\'');
 		return true;
 	}
-	
+
 	public static function unbind() {
-		mysql_close();
+		self::$db->close();
 		return true;
 	}
 
 	public static function charset() {
 		if (array_key_exists('charset', self::$dbProperties)) return self::$dbProperties['charset'];
-		else return null;
+		return null;
 	}
+
 	public static function dbms() {
 		return 'MySQL';
 	}
 
 	public static function version($mode = 'server') {
 		if (array_key_exists('version', self::$dbProperties)) return self::$dbProperties['version'];
-		else {
-			self::$dbProperties['version'] = self::queryCell("SELECT VERSION()");
-			return self::$dbProperties['version'];
-		}
+		self::$dbProperties['version'] = self::queryCell('SELECT VERSION()');
+		return self::$dbProperties['version'];
 	}
-	
+
 	public static function tableList($condition = null) {
-		if (!array_key_exists('tableList', self::$dbProperties)) { 
+		if (!array_key_exists('tableList', self::$dbProperties)) {
 			$tableData = self::queryAll('SHOW TABLES');
 			self::$dbProperties['tableList'] = array();
-			foreach($tableData as $tbl) {
+			foreach ($tableData as $tbl) {
 				array_push(self::$dbProperties['tableList'], $tbl[0]);
 			}
 		}
-		$result = array();
-		if(!is_null($condition)) {
+		if (!is_null($condition)) {
 			$result = array();
-			foreach(self::$dbProperties['tableList'] as $item) {
-				if(strpos($item, $condition) === 0) {
+			foreach (self::$dbProperties['tableList'] as $item) {
+				if (strpos($item, $condition) === 0)
 					array_push($result, $item);
-				}
 			}
 			return $result;
-		} else {
-			return self::$dbProperties['tableList'];
 		}
+		return self::$dbProperties['tableList'];
 	}
-	
+
 	public static function setTimezone($time) {
 		return self::query('SET time_zone = \'' . Timezone::getCanonical() . '\'');
 	}
+
 	public static function reservedFieldNames() {
 		return null;
 	}
+
 	public static function reservedFunctionNames() {
 		return array('UNIX_TIMESTAMP()');
 	}
-	/*@static@*/
+
 	public static function queryExistence($query) {
 		if ($result = self::query($query)) {
-			if (mysql_num_rows($result) > 0) {
-				mysql_free_result($result);
+			if ($result->num_rows > 0) {
+				$result->free();
 				return true;
 			}
-			mysql_free_result($result);
+			$result->free();
 		}
 		return false;
 	}
-	
-	/*@static@*/
+
 	public static function queryCount($query) {
 		$count = 0;
 		$query = trim($query);
 		if ($result = self::query($query)) {
-			$operation = strtolower(substr($query, 0,6));
+			$operation = strtolower(substr($query, 0, 6));
 			self::$lastQueryType = $operation;
 			switch ($operation) {
 				case 'select':
-					$count = mysql_num_rows($result);
-					mysql_free_result($result);
+					$count = $result->num_rows;
+					$result->free();
 					break;
 				case 'insert':
 				case 'update':
 				case 'delete':
 				case 'replac':
 				default:
-					$count = mysql_affected_rows();
-					//mysql_free_result();
+					$count = self::$db->affected_rows;
 					break;
 			}
 		}
 		return $count;
 	}
 
-	/*@static@*/
-	public static function queryCell($query, $field = 0, $useCache=true) {
-		$type = 'both';
+	public static function queryCell($query, $field = 0, $useCache = true) {
 		if (is_numeric($field)) {
-			$type = 'num';
+			$type = MYSQLI_NUM;
 		} else {
-			$type = 'assoc';
+			$type = MYSQLI_ASSOC;
 		}
-
-		if( $useCache ) {
+		if ($useCache) {
 			$result = self::queryAllWithCache($query, $type);
 		} else {
 			$result = self::queryAllWithoutCache($query, $type);
 		}
-		if( empty($result) ) {
-			return null;
-		}
+		if (empty($result)) return null;
 		return $result[0][$field];
 	}
-	
-	/*@static@*/
-	public static function queryRow($query, $type = 'both', $useCache=true) {
-		if( $useCache ) {
+
+	public static function queryRow($query, $type = 'both', $useCache = true) {
+		if ($useCache) {
 			$result = self::queryAllWithCache($query, $type, 1);
 		} else {
 			$result = self::queryAllWithoutCache($query, $type, 1);
 		}
-		if( empty($result) ) {
-			return null;
-		}
+		if (empty($result)) return null;
 		return $result[0];
 	}
-	
-	/*@static@*/
-	public static function queryColumn($query, $useCache=true) {
+
+	public static function queryColumn($query, $useCache = true) {
 		$cacheKey = "{$query}_queryColumn";
-		if( $useCache && isset( self::$cachedResult[$cacheKey] ) ) {
-			if(function_exists( '__tcSqlLogBegin' ) ) {
+		if ($useCache && isset(self::$cachedResult[$cacheKey])) {
+			if (function_exists('__tcSqlLogBegin')) {
 				__tcSqlLogBegin($query);
-				__tcSqlLogEnd(null,1);
+				__tcSqlLogEnd(null, 1);
 			}
 			self::$cachedResult[$cacheKey][0]++;
 			return self::$cachedResult[$cacheKey][1];
 		}
-
 		$column = null;
 		if ($result = self::query($query)) {
 			$column = array();
-			while ($row = mysql_fetch_row($result))
+			while ($row = $result->fetch_row())
 				array_push($column, $row[0]);
-			mysql_free_result($result);
+			$result->free();
 		}
-
-		if( $useCache ) {
-			self::$cachedResult[$cacheKey] = array( 1, $column );
+		if ($useCache) {
+			self::$cachedResult[$cacheKey] = array(1, $column);
 		}
 		return $column;
 	}
-	
-	/*@static@*/
-	public static function queryAll ($query, $type = 'both', $count = -1) {
+
+	public static function queryAll($query, $type = 'both', $count = -1) {
 		return self::queryAllWithCache($query, $type, $count);
-		//return self::queryAllWithoutCache($query, $type, $count);  // Your choice. :)
 	}
 
 	public static function queryAllWithoutCache($query, $type = 'both', $count = -1) {
 		$all = array();
 		$realtype = self::__queryType($type);
 		if ($result = self::query($query)) {
-			if (is_resource($result)) {
-				while ( ($count-- !=0) && $row = mysql_fetch_array($result, $realtype))
-					array_push($all, $row);
-				mysql_free_result($result);
-				return $all;
-			} else {
-				return $result;
-			}
+			while (($count-- != 0) && $row = $result->fetch_array($realtype))
+				array_push($all, $row);
+			$result->free();
+			return $all;
 		}
 		return null;
 	}
-	
+
 	public static function queryAllWithCache($query, $type = 'both', $count = -1) {
 		$cacheKey = "{$query}_{$type}_{$count}";
-		if( isset( self::$cachedResult[$cacheKey] ) ) {
-			if( function_exists( '__tcSqlLogBegin' ) ) {
+		if (isset(self::$cachedResult[$cacheKey])) {
+			if (function_exists('__tcSqlLogBegin')) {
 				__tcSqlLogBegin($query);
-				__tcSqlLogEnd(null,1);
+				__tcSqlLogEnd(null, 1);
 			}
 			self::$cachedResult[$cacheKey][0]++;
 			return self::$cachedResult[$cacheKey][1];
 		}
-		$all = self::queryAllWithoutCache($query,$type,$count);
-		self::$cachedResult[$cacheKey] = array( 1, $all );
+		$all = self::queryAllWithoutCache($query, $type, $count);
+		self::$cachedResult[$cacheKey] = array(1, $all);
 		return $all;
 	}
-	
-	/*@static@*/
+
 	public static function execute($query) {
 		return self::query($query) ? true : false;
 	}
 
-	/*@static@*/
 	public static function multiQuery() {
 		$result = false;
 		foreach (func_get_args() as $query) {
@@ -234,124 +234,136 @@ class DBAdapter implements IAdapter {
 		return $result;
 	}
 
-	/*@static@*/
 	public static function query($query) {
-		if( function_exists( '__tcSqlLogBegin' ) ) {
+		if (function_exists('__tcSqlLogBegin')) {
 			__tcSqlLogBegin($query);
-			$result = mysql_query($query);
-			__tcSqlLogEnd($result,0);
+			$result = self::$db->query($query);
+			__tcSqlLogEnd($result, 0);
 		} else {
-			$result = mysql_query($query);
+			$result = self::$db->query($query);
 		}
-		self::$lastQueryType = strtolower(substr($query, 0,6));
-		if( stristr($query, 'update ') ||
+		self::$lastQueryType = strtolower(substr($query, 0, 6));
+		if (stristr($query, 'update ') ||
 			stristr($query, 'insert ') ||
 			stristr($query, 'delete ') ||
-			stristr($query, 'replace ') ) {
+			stristr($query, 'replace ')) {
 			self::clearCache();
 		}
 		return $result;
 	}
-	
+
 	public static function insertId() {
-		return mysql_insert_id();
+		return self::$db->insert_id;
 	}
-	
-	public static function escapeString($string, $link = null){
-		if(!self::$db) return mysql_escape_string($string);
-		if(is_null(self::$escapeTag)) {
-			if ( function_exists('mysql_real_escape_string') && (mysql_real_escape_string('ㅋ') == 'ㅋ')) {
+
+	public static function escapeString($string, $link = null) {
+		if (is_null(self::$escapeTag)) {
+			if (self::$db->real_escape_string('ㅋ') == 'ㅋ') {
 				self::$escapeTag = 'real';
 			} else {
 				self::$escapeTag = 'none';
 			}
 		}
-		if(self::$escapeTag == 'real') {
-			return is_null($link) ? mysql_real_escape_string($string) : mysql_real_escape_string($string, $link);
+		if (self::$escapeTag == 'real') {
+			return self::$db->real_escape_string($string);
 		} else {
-			return mysql_escape_string($string);
+			return self::$db->escape_string($string);
 		}
 	}
-	
+
 	public static function clearCache() {
 		self::$cachedResult = array();
-		if( function_exists( '__tcSqlLogBegin' ) ) {
-			__tcSqlLogBegin("Cache cleared");
-			__tcSqlLogEnd(null,2);
+		if (function_exists('__tcSqlLogBegin')) {
+			__tcSqlLogBegin('Cache cleared');
+			__tcSqlLogEnd(null, 2);
 		}
 	}
 
 	public static function cacheLoad() {
 		global $fileCachedResult;
 	}
+
 	public static function cacheSave() {
 		global $fileCachedResult;
 	}
-	public static function commit() { 
-		return true; // Auto commit.
-	}
-	/* Raw public static functions (to easier adoptation) */
-	/*@static@*/
-	public static function num_rows($handle = null) {
-		switch(self::$lastQueryType) {
-			case 'select':
-				return mysql_num_rows($handle);
-				break;
-			default:
-				return mysql_affected_rows($handle);
-				break;
-		}
-		return null;
-	}
-	/*@static@*/
-	public static function free($handle = null) {
-		mysql_free_result($handle);
-	}
-	
-	/*@static@*/
-	public static function fetch($handle = null, $type = 'assoc') {
-		if($type == 'array') return mysql_fetch_array($handle); // Can I use mysql_fetch_row instead?
-		else if ($type == 'row') return mysql_fetch_row($handle);
-		else return mysql_fetch_assoc($handle);
-	}
-	
-	/*@static@*/
-	public static function error($err = null) {
-		if($err === null) return mysql_error();
-		else return mysql_error($err);
-	}
-	
-	/*@static@*/
-	public static function stat($stat = null) {
-		if($stat === null) return mysql_stat();
-		else return mysql_stat($stat);
-	}
-	
-	/*@static@*/
-	public static function __queryType($type) {
-		switch(strtolower($type)) {
-			case 'num':
-				return MYSQL_NUM;
-			case 'assoc':
-				return MYSQL_ASSOC;				
-			case 'both':
-			default:
-				return MYSQL_BOTH;
-		}
-	}
-	
-	public static function fieldType($abstractType) {
-		if(isset($typeTable[$abstractType])) return $typeTable[$abstractType];
+
+	public static function rollback() {
+		return self::$db->rollback();
 	}
 
-    public static $typeTable = array(
-        "integer" => "int",
-        "int" => "int",
-        "float" => "float",
-        "double" => "double",
-        "timestamp" => "int",
-        "mediumtext" => "mediumtext",
-        "vartext" => "vartext",
-        "text" => "text");
+	public static function commit() {
+		self::$db->commit();
+		return true;
+	}
+
+	public static function num_rows($handle = null) {
+		switch (self::$lastQueryType) {
+			case 'select':
+				return $handle ? $handle->num_rows : 0;
+			default:
+				return self::$db->affected_rows;
+		}
+	}
+
+	public static function free($handle = null) {
+		if ($handle) $handle->free();
+	}
+
+	public static function fetch($handle = null, $type = 'assoc') {
+		if ($type == 'array') return $handle->fetch_array();
+		else if ($type == 'row') return $handle->fetch_row();
+		else return $handle->fetch_assoc();
+	}
+
+	public static function error($err = null) {
+		return self::$db->error;
+	}
+
+	public static function stat($stat = null) {
+		return self::$db->stat();
+	}
+
+	public static function __queryType($type) {
+		switch (strtolower($type)) {
+			case 'num':    return MYSQLI_NUM;
+			case 'assoc':  return MYSQLI_ASSOC;
+			case 'both':
+			default:       return MYSQLI_BOTH;
+		}
+	}
+
+	public static function fieldType($abstractType) {
+		if (isset($typeTable[$abstractType])) return $typeTable[$abstractType];
+	}
+
+	public static $typeTable = array(
+		'integer'    => 'int',
+		'int'        => 'int',
+		'float'      => 'float',
+		'double'     => 'double',
+		'timestamp'  => 'int',
+		'mediumtext' => 'mediumtext',
+		'vartext'    => 'vartext',
+		'text'       => 'text',
+	);
+
+/*** Prepared Statement API (v1.85, STAGE 2 — delegates to mysqli connection) ***/
+	public static function prepare($query) {
+		return self::$db->prepare($query);
+	}
+	public static function bindAndExecute($stmt, $types, ...$params) {
+		$stmt->bind_param($types, ...$params);
+		return $stmt->execute();
+	}
+	public static function fetchAllStmt($stmt) {
+		$result = $stmt->get_result();
+		if ($result === false) return null;
+		$all = [];
+		while ($row = $result->fetch_assoc()) {
+			$all[] = $row;
+		}
+		$result->free();
+		return $all;
+	}
 }
 ?>

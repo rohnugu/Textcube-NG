@@ -69,6 +69,12 @@
 				  <name>pop3subject</name><type>string</type><mandatory>0</mandatory>
 			  </param>
 			  <param>
+				  <name>pop3protocol</name><type>string</type><mandatory>0</mandatory>
+			  </param>
+			  <param>
+				  <name>pop3imapfolder</name><type>string</type><mandatory>0</mandatory>
+			  </param>
+			  <param>
 				  <name>check</name><type>int</type><mandatory>0</mandatory>
 			  </param>
           </params>

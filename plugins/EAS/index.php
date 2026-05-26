@@ -28,9 +28,26 @@ function FAS_Call($type, $name, $title, $url, $content)
 
 	$DDosTimeWindowSize = 300;
 
+	// 플러그인 설정에서 프로토콜·도메인·인증키 읽기. 미설정 시 원래 기본값 사용.
+	// getCurrentSetting() 은 플러그인 활성 상태에서만 유효하므로 별도 예외 처리 불필요.
+	$pluginConfig = Setting::fetchConfigVal(getCurrentSetting('EAS')) ?: array();
+	$fasScheme   = !empty($pluginConfig['fas_scheme'])   ? trim($pluginConfig['fas_scheme'])   : 'http';
+	if (!in_array($fasScheme, array('http', 'https'))) $fasScheme = 'http';
+	$fasDomain   = !empty($pluginConfig['fas_domain'])   ? trim($pluginConfig['fas_domain'])   : 'antispam.textcube.org';
+	$fasRpcPath  = !empty($pluginConfig['fas_rpcpath'])  ? trim($pluginConfig['fas_rpcpath'])  : '/RPC/';
+	if ($fasRpcPath[0] !== '/') $fasRpcPath = '/' . $fasRpcPath;
+	$fasAuthKey  = !empty($pluginConfig['fas_authkey'])  ? trim($pluginConfig['fas_authkey'])  : '';
+
 	$rpc = new XMLRPC();
-	$rpc->url = 'http://antispam.textcube.org/RPC/';
-	if ($rpc->call('checkSpam', $blogstr, $type, $name, $title, $url, $content, $_SERVER['REMOTE_ADDR']) == false)
+	$rpc->url = $fasScheme . '://' . rtrim($fasDomain, '/') . $fasRpcPath;
+
+	// 인증키 미설정: 기존 FAS 호환 7-param 모드.
+	// 인증키 설정: 커스텀 엔진 8-param 모드 (authKey 를 8번째 파라미터로 추가).
+	$callResult = !empty($fasAuthKey)
+		? $rpc->call('checkSpam', $blogstr, $type, $name, $title, $url, $content, $_SERVER['REMOTE_ADDR'], $fasAuthKey)
+		: $rpc->call('checkSpam', $blogstr, $type, $name, $title, $url, $content, $_SERVER['REMOTE_ADDR']);
+
+	if ($callResult == false)
 	{
 		// call fail
 		// Do Local spam check with "Thief-cat algorithm"
@@ -108,4 +125,39 @@ function FAS_AddingComment($target, $mother)
 	return $target && FAS_Call($type, $mother['name'], '', $mother['homepage'], $mother['comment']);
 }
 
+// 플러그인 설정 탭용 manifestHandler.
+function EAS_ConfigHandler($plugin)
+{
+	$context = Model_Context::getInstance();
+	// 현재 블로그 식별자 — 모든 checkSpam 호출에 포함되는 값.
+	$blogstr = htmlspecialchars(
+		$context->getProperty('uri.host') . $context->getProperty('uri.blog'),
+		ENT_QUOTES, 'UTF-8'
+	);
+	return '<?xml version="1.0" encoding="utf-8"?>'
+		. '<config>'
+
+		. '<fieldset legend="FAS 서버 설정">'
+		. '<field type="select" name="fas_scheme" title="프로토콜">'
+		. '<op value="http" checked="checked">HTTP</op>'
+		. '<op value="https">HTTPS</op>'
+		. '<caption>HTTPS 선택 시 서버에 유효한 SSL 인증서가 필요하며 PHP OpenSSL 확장이 활성화되어 있어야 합니다.</caption>'
+		. '</field>'
+		. '<field type="text" name="fas_domain" title="서버 도메인" value="antispam.textcube.org" size="50">'
+		. '<caption>antispam.textcube.org 는 현재 서비스 중단 상태입니다. '
+		. '자체 FAS 호환 서버를 운영하는 경우 해당 도메인(호스트명)만 입력하세요. '
+		. '현재 블로그 식별자: ' . $blogstr . '</caption>'
+		. '</field>'
+		. '<field type="text" name="fas_rpcpath" title="RPC 경로" value="/RPC/" size="50">'
+		. '<caption>XML-RPC 엔드포인트 경로. 기본값: /RPC/ — 엔드포인트 전체 URL: {프로토콜}://{도메인}{경로}</caption>'
+		. '</field>'
+		. '<field type="text" name="fas_authkey" title="인증키 (선택)" value="" size="50">'
+		. '<caption>커스텀 스팸 엔진 서버에서 요구하는 인증키. '
+		. '입력 시 checkSpam 8번째 파라미터로 전달 (커스텀 8-param 모드). '
+		. '미입력 시 기존 FAS 호환 7-param 모드로 동작.</caption>'
+		. '</field>'
+		. '</fieldset>'
+
+		. '</config>';
+}
 ?>

@@ -1,14 +1,30 @@
+# macOS
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-*_local_tools*
 Icon?
+
+# Windows
 ehthumbs.db
 Thumbs.db
+nul
+
+# Textcube runtime data
 attach
 cache
 skin/blog/customize
 config.php
 .htaccess
+
+# PHP runtime config
+.user.ini
+tmp/
+*.log
+
+# Development / test utilities
+chkport.php
+opcache_flush.php
+*_local_tools*
+

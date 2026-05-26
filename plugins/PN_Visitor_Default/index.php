@@ -27,6 +27,8 @@ function PN_Visitor_Default()
 {
 	global $pluginMenuURL, $pluginHandlerURL;
 	$blogid = getBlogId();
+	$safeHandlerURL = htmlspecialchars($pluginHandlerURL, ENT_QUOTES, 'UTF-8');
+	$safeMenuURL    = htmlspecialchars($pluginMenuURL, ENT_QUOTES, 'UTF-8');
 	$stats = Statistics::getStatistics($blogid);
 	$date = isset($_GET['date']) ? $_GET['date'] : date('Ym', strtotime("now"));
 ?>
@@ -38,10 +40,10 @@ function PN_Visitor_Default()
 ?>
 								function setTotalStatistics() {
 									if (confirm("방문자의 수를 초기화하면 방문객의 수가 0이 됩니다.\n정말 초기화하시겠습니까?")) {
-										var request = new HTTPRequest("GET", "<?php echo $pluginHandlerURL;?>/PN_Visitor_Default_set&ajaxcall");
+										var request = new HTTPRequest("GET", <?php echo json_encode($pluginHandlerURL . '/PN_Visitor_Default_set&ajaxcall'); ?>);
 										request.onSuccess = function() {
 											//document.getElementById("total").innerHTML = 0;
-											window.location = '<?php echo $pluginMenuURL;?>';
+											window.location = <?php echo json_encode($pluginMenuURL); ?>;
 											return true;
 										}
 										request.onError = function() {
@@ -77,7 +79,7 @@ function PN_Visitor_Default()
 							//]]>
 						</script>
 					 		
-					 	<form method="post" action="<?php echo $pluginHandlerURL;?>PN_Visitor_Default_set">
+					 	<form method="post" action="<?php echo $safeHandlerURL;?>PN_Visitor_Default_set">
 					 		<div id="part-statistics-visitor" class="part">
 					 			<h2 class="caption"><span class="main-text">방문자 통계정보를 보여줍니다</span></h2>
 					 			
@@ -90,7 +92,7 @@ function PN_Visitor_Default()
 <?php
 	if(Acl::check('group.owners')) {
 ?>
-									<a class="init-button button" href="<?php echo $pluginHandlerURL;?>/PN_Visitor_Default_set" onclick="setTotalStatistics(); return false;"><span class="text">초기화</span></a>
+									<a class="init-button button" href="<?php echo $safeHandlerURL;?>/PN_Visitor_Default_set" onclick="setTotalStatistics(); return false;"><span class="text">초기화</span></a>
 <?php
 	}
 ?>
@@ -113,9 +115,10 @@ for ($i=0; $i<sizeof($temp); $i++) {
 	$className = ($i % 2) == 1 ? 'even-line' : 'odd-line';
 	$className .= ($i == sizeof($temp) - 1) ? ' last-line' : '';
 ?>
-										<tr class="<?php echo $className;?> inactive-class" onmouseover="rolloverClass(this, 'over')" onmouseout="rolloverClass(this, 'out')" onclick="window.location.href='<?php echo $pluginMenuURL;?>&amp;date=<?php echo $record['datemark'];?>'">
-											<td class="date"><a href="<?php echo $pluginMenuURL;?>&amp;date=<?php echo $record['datemark'];?>"><?php echo Timestamp::formatDate2(Misc::getTimeFromPeriod($record['datemark']));?></a></td>
-											<td class="count"><a href="<?php echo $pluginMenuURL;?>&amp;date=<?php echo $record['datemark'];?>"><?php echo $record['visits'];?></a></td>
+<?php $safeDatemark = htmlspecialchars($record['datemark'], ENT_QUOTES, 'UTF-8'); ?>
+										<tr class="<?php echo $className;?> inactive-class" onmouseover="rolloverClass(this, 'over')" onmouseout="rolloverClass(this, 'out')" onclick="window.location.href=<?php echo json_encode($pluginMenuURL . '&date=' . $record['datemark']); ?>">
+											<td class="date"><a href="<?php echo $safeMenuURL;?>&amp;date=<?php echo $safeDatemark;?>"><?php echo Timestamp::formatDate2(Misc::getTimeFromPeriod($record['datemark']));?></a></td>
+											<td class="count"><a href="<?php echo $safeMenuURL;?>&amp;date=<?php echo $safeDatemark;?>"><?php echo (int)$record['visits'];?></a></td>
 										</tr>
 <?php
 }
@@ -160,6 +163,7 @@ if (isset($date)) {
 
 function PN_Visitor_Default_set()
 {
+	global $pluginMenuURL;
 	$blogid = getBlogId();
 	$isAjaxRequest = isset($_REQUEST['ajaxcall']) ? true : false;
 	if ($isAjaxRequest) {
@@ -168,7 +172,7 @@ function PN_Visitor_Default_set()
 		print ("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<response>\n<error>$result</error>\n</response>");
 		exit;
 	} else {
-		header("Location: ".$_SERVER['HTTP_REFERER']);
+		header("Location: " . $pluginMenuURL);
 	}
 }
 ?>

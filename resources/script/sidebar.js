@@ -194,20 +194,15 @@
 			    this.domNode.innerHTML = data;
 		    },
 		    placeModalDialog: function() {
-			    var scroll_offset = dojo.html.getScroll().offset;
-			    var viewport_size = dojo.html.getViewport();
-    			
-			    // find the size of the dialog
-			    var mb = dojo.html.getMarginBox(this.containerNode);
-			    if (mb.width<200) mb.width = 200;
-			    if (mb.height<200) mb.height = 200;
-    			
-			    var x = scroll_offset.x + (viewport_size.width - mb.width)/2;
-			    var y = scroll_offset.y + (viewport_size.height - mb.height)/2;
-
 			    with(this.domNode.style){
-				    left = x + "px";
-				    top = y + "px";
+				    position        = 'fixed';
+				    top             = '50%';
+				    left            = '50%';
+				    webkitTransform = 'translate(-50%, -50%)';
+				    MozTransform    = 'translate(-50%, -50%)';
+				    msTransform     = 'translate(-50%, -50%)';
+				    transform       = 'translate(-50%, -50%)';
+				    margin          = '0';
 			    }
 		    }
     	}
@@ -361,6 +356,7 @@
 				}
 				
 				dlg.setCloseControl(btn);
+				dlg.placeModalDialog();
 				dlg.show();
 			}
 		}

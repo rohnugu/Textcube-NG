@@ -27,13 +27,17 @@ final class HTTPRequest {
 		$request = @parse_url($this->url);
 		for ($trial = 0; $trial < 5; $trial++) {
 			unset($this->_response);
-			if (empty($request['scheme']) || ($request['scheme'] != 'http') || empty($request['host']))
+			// http/https 모두 허용. https 는 ssl:// 프리픽스로 PHP OpenSSL 확장을 통해 처리.
+			// 자체 서명 인증서(self-signed)는 기본 설정에서 연결 거부됨 — stream_socket_client 기반
+			// 컨텍스트 옵션 지원이 필요한 경우 별도 구현 필요 (장기 과제).
+			if (empty($request['scheme']) || !in_array($request['scheme'], array('http', 'https')) || empty($request['host']))
 				return false;
 			if (empty($request['port']))
-				$request['port'] = 80;
+				$request['port'] = ($request['scheme'] === 'https') ? 443 : 80;
 			if (empty($request['path']))
 				$request['path'] = '/';
-			if (!$socket = @fsockopen($request['host'], $request['port'], $errno, $errstr, $this->timeout))
+			$socketHost = ($request['scheme'] === 'https') ? 'ssl://' . $request['host'] : $request['host'];
+			if (!$socket = @fsockopen($socketHost, $request['port'], $errno, $errstr, $this->timeout))
 				return false;
 				
 			$path = empty($request['query']) ? $request['path'] : $request['path'] . '?' . $request['query'];

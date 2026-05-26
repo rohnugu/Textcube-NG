@@ -22,7 +22,7 @@ function getSymbolByQuantity($bytes) {
 }
 
 /* Current time */
-$serverTime = strftime( "Server Time: %Y-%m-%d %H:%M:%S %z (%Z)", time() );
+$serverTime = strftime_compat("Server Time: %Y-%m-%d %H:%M:%S %z (%Z)", time());
 
 /* Database version */
 $dbVersion = '';
@@ -166,7 +166,10 @@ if (!in_array('phpinfo', array_map('trim', explode(',', ini_get('disable_functio
 
 	$regexpArray = array();
 	array_push($regexpArray, '@.*<body.*?>(.*)</body>.*@sim');
-	array_push($regexpArray, '@<table.*>\s*<tr.*><td>\s*<a href="(.+)"><img border="0" src="(.+)" alt="PHP Logo" /></a><h1 class="p">(.+)</h1>\s*</td></tr>\s*</table>@Usi');
+	// PHP 7.x: phpinfo() no longer embeds the logo in the format matched by this pattern.
+	// The old regex causes PCRE backtrack limit overflow on the 77KB output, returning NULL
+	// and silently discarding all subsequent output. Removed.
+	//array_push($regexpArray, '@<table.*>\s*<tr.*><td>\s*<a href="(.+)"><img border="0" src="(.+)" alt="PHP Logo" /></a><h1 class="p">(.+)</h1>\s*</td></tr>\s*</table>@Usi');
 	//array_push($regexpArray, '@<table.*>\s*<tr.*><td>\s*<a href="(.+)"><img border="0" src="(.+)" alt="Zend logo" /></a>(.+)\s*</td></tr>\s*</table>@Usi');
 	array_push($regexpArray, '@<(/?)h1(.*)>@Usi');
 	array_push($regexpArray, '@<(/?)h2(.*)>@Usi');
@@ -179,7 +182,8 @@ if (!in_array('phpinfo', array_map('trim', explode(',', ini_get('disable_functio
 	//array_push($regexpArray, '');
 	$resultArray = array();
 	array_push($resultArray, '$1');
-	array_push($resultArray, '<div id="PHPLogo"><a href="$1"><img src="$2" /></a><p>$3</p></div>');
+	// Corresponding replacements for the removed PHP/Zend logo regexes (see above).
+	//array_push($resultArray, '<div id="PHPLogo"><a href="$1"><img src="$2" /></a><p>$3</p></div>');
 	//array_push($resultArray, '<div id="ZendLogo"><a href="$1"><img src="$2" /></a><p>$3</p></div>');
 	array_push($resultArray, '<$1h3>');
 	array_push($resultArray, '<$1h4>');

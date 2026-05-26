@@ -308,7 +308,7 @@ for ($i=0; $i<$sidebarCount; $i++) {
 												
 														<a href="<?php echo $blogURL; ?>/owner/skin/sidebar/delete/?sidebarNumber=<?php echo $i;?>&amp;modulePos=<?php echo $j;?><?php echo $viewMode;?>" title="<?php echo _t('이 사이드바 모듈을 삭제합니다.');?>"><img src="<?php echo $service['path'].$adminSkinSetting['skin'];?>/image/img_delete_module.gif" border="0" alt="<?php echo _t('삭제');?>" /></a>
 													</div>
-													<div class="module-content"><?php echo pretty_dress($skin->sidebarBasicModules[$skini][$skinj]['body']);?></div>
+													<div class="module-content"><?php try { echo pretty_dress($skin->sidebarBasicModules[$skini][$skinj]['body']); } catch (\Throwable $e) {} ?></div>
 												</li>
 <?php
 			array_push($usedSidebarBasicModule, $orderConfig[$j]['id']);
@@ -383,7 +383,9 @@ for ($i=0; $i<$sidebarCount; $i++) {
 <?php
 				if (($invalidPlugin == false) && function_exists($handler)) {
 					$pluginURL = "{$service['path']}/plugins/{$orderConfig[$j]['id']['plugin']}";
-					echo pretty_dress(call_user_func($handler, $orderConfig[$j]['parameters']));
+					try {
+						echo pretty_dress(call_user_func($handler, $orderConfig[$j]['parameters']));
+					} catch (\Throwable $e) {}
 				}
 ?>
 													</div>
@@ -452,7 +454,7 @@ foreach ($sortedArray as $nowKey) {
 										<li class="sidebar-module" id="<?php echo "add-sidebar-element-{$nowKey['identifier']}";?>">
 											<h4 class="module-title"><input type="radio" id="module<?php echo $nowKey['identifier'];?>" class="radio" name="moduleId" value="<?php echo $nowKey['identifier'];?>" /><label for="module<?php echo $nowKey['identifier'];?>"><?php echo $nowKey['title'];?></label></h4>
 											
-											<div class="module-content"><?php echo pretty_dress($nowKey['body']);?></div>
+											<div class="module-content"><?php try { echo pretty_dress($nowKey['body']); } catch (\Throwable $e) {} ?></div>
 										</li>
 <?php
 }
@@ -475,9 +477,11 @@ foreach ($sidebarPluginArray as $nowKey) {
 											</div>
 											<div class="module-content">
 <?php
-	$pluginURL = "{$service['path']}/plugins/{$nowKey['plugin']}";
-	include_once (ROOT . "/plugins/{$nowKey['plugin']}/index.php");
-	echo pretty_dress(call_user_func($nowKey['id'], array('preview' => '')));
+	try {
+		$pluginURL = "{$service['path']}/plugins/{$nowKey['plugin']}";
+		include_once (ROOT . "/plugins/{$nowKey['plugin']}/index.php");
+		echo pretty_dress(call_user_func($nowKey['id'], array('preview' => '')));
+	} catch (\Throwable $e) {}
 ?>
 											</div>
 										</li>
@@ -517,7 +521,7 @@ foreach ($sidebarPluginArray as $nowKey) {
 									
 <?php
 		for ($i=0; $i<$sidebarCount; $i++) {
-			echo "pNode = document.getElementById('sidebar-ul-{$i}').firstChild;";
+			echo "{ var _ul=document.getElementById('sidebar-ul-{$i}'); pNode = _ul ? _ul.firstChild : null; }";
 ?>
 									pos = 0;
 									while (pNode != null) {
@@ -556,8 +560,10 @@ foreach ($sidebarPluginArray as $nowKey) {
 								
 								function initPages()
 								{
-									dlg = dojo.widget.createWidget("popupWindow", {}, document.getElementById('body-skin').firstChild, 'after');
-									dlg.domNode.className = 'ajax-popup-window';
+									try {
+										dlg = dojo.widget.createWidget("popupWindow", {}, document.getElementById('body-skin').firstChild, 'after');
+										dlg.domNode.className = 'ajax-popup-window';
+									} catch(e) { dlg = null; }
 									var inputs = document.getElementsByTagName("input");
 									for (i=0; i < inputs.length;) {
 										if (inputs[i].className == 'radio') {
@@ -574,52 +580,38 @@ foreach ($sidebarPluginArray as $nowKey) {
 											i++
 							 			}
 									}
-									
-									new DropDeletePanel(document.getElementById('sidebar-basic-module-box-ul'), ["sidebar"]);
+
+									var basicModBox = document.getElementById('sidebar-basic-module-box-ul');
+									if (basicModBox) new DropDeletePanel(basicModBox, ["sidebar"]);
 
 <?php
 for ($i=0; $i<$sidebarCount; $i++) {
-	echo "document.getElementById('sidebar-ul-{$i}').sidebar = {$i};".CRLF;
-	echo "new DropPanel(document.getElementById('sidebar-ul-{$i}'), [\"sidebar\"]);".CRLF;
-	
+	echo "(function(){var e=document.getElementById('sidebar-ul-{$i}');if(!e)return;e.sidebar={$i};new DropPanel(e,[\"sidebar\"]);})();".CRLF;
+
 	$orderConfig = array_key_exists($i, $sidebarConfig) ? $sidebarConfig[$i] :  array();
 	for ($j=0; $j<count($orderConfig); $j++) {
-		echo "document.getElementById('sidebar-element-{$i}-{$j}').sidebarNumber = {$i};".CRLF;
-		echo "document.getElementById('sidebar-element-{$i}-{$j}').modulePos = {$j};".CRLF;
-		echo "document.getElementById('sidebar-element-{$i}-{$j}').ajaxtype = 'reorder';".CRLF;
-		echo "document.getElementById('sidebar-element-{$i}-{$j}').hasPropertyEdit = false;".CRLF;
-		
+		$hasEdit = 'false';
+		$modCat = '';
 		if ($orderConfig[$j]['type'] == 3) {
-			echo "document.getElementById('sidebar-element-{$i}-{$j}').moduleCategory = 'plugin';".CRLF;
-			echo "document.getElementById('sidebar-element-{$i}-{$j}').hasPropertyEdit = ";
 			$plugin = $orderConfig[$j]['id']['plugin'];
 			$handler = $orderConfig[$j]['id']['handler'];
 			$sidbarPluginIndex = $plugin . '/' . $handler;
-			
-			echo (array_key_exists($sidbarPluginIndex, $sidebarPluginArray) 
+			$modCat = "e.moduleCategory='plugin';";
+			$hasEdit = (array_key_exists($sidbarPluginIndex, $sidebarPluginArray)
 				&& (count($sidebarPluginArray[$sidbarPluginIndex]['parameters']) > 0)) ? 'true' : 'false';
-			echo ";".CRLF;
 		}
-		
-		echo "new DragPanel(document.getElementById('sidebar-element-{$i}-{$j}'), [\"sidebar\"]);".CRLF;
+		echo "(function(){var e=document.getElementById('sidebar-element-{$i}-{$j}');if(!e)return;e.sidebarNumber={$i};e.modulePos={$j};e.ajaxtype='reorder';{$modCat}e.hasPropertyEdit={$hasEdit};new DragPanel(e,[\"sidebar\"]);})();".CRLF;
 	}
 }
 
 foreach ($sortedArray as $nowKey) {
-	echo "document.getElementById('add-sidebar-element-{$nowKey['identifier']}').identifier = '{$nowKey['identifier']}';".CRLF;
-	echo "document.getElementById('add-sidebar-element-{$nowKey['identifier']}').ajaxtype = 'register';".CRLF;
-	echo "document.getElementById('add-sidebar-element-{$nowKey['identifier']}').moduleCategory = 'sidebar_element';".CRLF;
-	echo "document.getElementById('add-sidebar-element-{$nowKey['identifier']}').hasPropertyEdit = false;".CRLF;
-	echo "new DragPanelAdd(document.getElementById('add-sidebar-element-{$nowKey['identifier']}'), [\"sidebar\"]);".CRLF;
+	$id = $nowKey['identifier'];
+	echo "(function(){var e=document.getElementById('add-sidebar-element-{$id}');if(!e)return;e.identifier='{$id}';e.ajaxtype='register';e.moduleCategory='sidebar_element';e.hasPropertyEdit=false;new DragPanelAdd(e,[\"sidebar\"]);})();".CRLF;
 }
 foreach ($sidebarPluginArray as $nowKey) {
-	echo "document.getElementById('add-sidebar-module-{$nowKey['identifier']}').identifier = '{$nowKey['identifier']}';".CRLF;
-	echo "document.getElementById('add-sidebar-module-{$nowKey['identifier']}').ajaxtype = 'register';".CRLF;
-	echo "document.getElementById('add-sidebar-module-{$nowKey['identifier']}').moduleCategory = 'plugin';".CRLF;
-	echo "document.getElementById('add-sidebar-module-{$nowKey['identifier']}').hasPropertyEdit = ";
-	echo count($nowKey['parameters']) > 0 ? 'true' : 'false';
-	echo ";".CRLF;
-	echo "new DragPanelAdd(document.getElementById('add-sidebar-module-{$nowKey['identifier']}'), [\"sidebar\"]);".CRLF;
+	$id = $nowKey['identifier'];
+	$hasEdit = count($nowKey['parameters']) > 0 ? 'true' : 'false';
+	echo "(function(){var e=document.getElementById('add-sidebar-module-{$id}');if(!e)return;e.identifier='{$id}';e.ajaxtype='register';e.moduleCategory='plugin';e.hasPropertyEdit={$hasEdit};new DragPanelAdd(e,[\"sidebar\"]);})();".CRLF;
 }
 ?>
 									reordering();

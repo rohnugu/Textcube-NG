@@ -29,7 +29,7 @@ class POD extends DBQuery {
 	var $_DBMS;*/
 
 	/** Initialization **/
-	function POD($domain = null, $type = null, $prefix = '') {
+	function __construct($domain = null, $type = null, $prefix = '') {
 		global $_pod_setting;
 		if($domain != null) $this->_domain = $domain;
 		else if(isset($this->domain)) $this->_domain = $this->domain;

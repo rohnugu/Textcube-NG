@@ -66,8 +66,8 @@ if (isset($_GET['session']) && isset($_GET['requestURI'])) {
 	}
 }
 $authResult = fireEvent('LOGIN_try_auth', false);
-if (doesHaveOwnership() || doesHaveMembership()) {
-	if (doesHaveOwnership() && !empty($_POST['requestURI'])) {
+if (doesHaveOwnership()) {
+	if (!empty($_POST['requestURI'])) {
 		$url = parse_url($_POST['requestURI']);
 		if ($url && isset($url['host']) && !StringUtil::endsWith( '.' . $url['host'], '.' . $context->getProperty('service.domain')))
 			$redirect = $context->getProperty('uri.blog')."/login?requestURI=" . rawurlencode($_POST['requestURI']) . '&session=' . rawurlencode(session_id());
@@ -83,6 +83,8 @@ if (doesHaveOwnership() || doesHaveMembership()) {
 	}
 	header('Location: '.$redirect);
 	exit;
+} else if (doesHaveMembership() && empty($message)) {
+	$message = _text('서비스의 회원이지만 이 블로그의 구성원이 아닙니다. 주소를 확인해 주시기 바랍니다.');
 }
 ?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ko">

@@ -6,11 +6,11 @@
   <title xml:lang="zh-CN">评论/留言中显示个性表情</title>
    <link>http://www.tnccompany.com</link>
   <version>1.6</version>
-  <description xml:lang="ko">댓글 및 방명록 내용에 포함된 이모티콘 기호를 아이콘으로 바꿔서 보여줍니다. 지원되는 이모티콘은 :) ;) :P $D :( --; 입니다.</description>
+  <description xml:lang="ko">댓글 및 방명록 내용에 포함된 이모티콘 기호를 아이콘으로 바꿔서 보여줍니다. 지원되는 이모티콘은 :) ;) :P 8D :( --; 입니다.</description>
   <description xml:lang="en">This plugin automatically converts certain character strings to relevant emoticons. 
-The strings are :) ;) :P $D :( --;</description>
-  <description xml:lang="ja">コメントと掲示板の内容に含まれた絵文字の記号をアイコンに変えて見せます。出来る絵文字は :) ;) :P $D :( --; です。</description>
-  <description xml:lang="zh-CN">评论和留言中的特殊符号会转换成个性表情. 支持的符号有:) ;) :P $D :( --;</description>
+The strings are :) ;) :P 8D :( --;</description>
+  <description xml:lang="ja">コメントと掲示板の内容に含まれた絵文字の記号をアイコンに変えて見せます。出来る絵文字は :) ;) :P 8D :( --; です。</description>
+  <description xml:lang="zh-CN">评论和留言中的特殊符号会转换成个性表情. 支持的符号有:) ;) :P 8D :( --;</description>
   <license>GPL</license>
   <author xml:lang="en" link="http://www.tnccompany.com">Tatter &amp; Company</author>
   <author xml:lang="ko" link="http://www.tnccompany.com">태터앤컴퍼니</author>
@@ -21,5 +21,6 @@ The strings are :) ;) :P $D :( --;</description>
   <binding>
     <listener event="ViewCommentContent">EmoticonOnComment_main</listener>
     <listener event="ViewGuestCommentContent">EmoticonOnComment_main</listener>
+    <config manifestHandler="EmoticonOnComment_ConfigHandler" />
   </binding>
 </plugin>

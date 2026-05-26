@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 /** Common remote response part */
 function getRemoteResponsesWithPagingForOwner($blogid, $category, $site, $ip, $search, $page, $count, $type = null) {
@@ -319,6 +327,11 @@ function sendTrackbackPing($entryId, $permalink, $url, $site, $title) {
 	$rpc->call('sync.trackback', $summary);
 }
 
+/**
+ * @security raw-sql-escape
+ * 외부 입력(title, url, excerpt, site)은 Trackback->add() → DBModel::setAttribute($val, true)
+ * → POD::escapeString()으로 이스케이프 처리됨. DBModel 구조상 prepared statement 직접 적용 불가.
+ */
 function receiveTrackback($blogid, $entry, $title, $url, $excerpt, $site) {
 	global $database, $blog, $defaultURL;
 	if (empty($url))

@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 /*@protected, static@*/
 function Tag_removeEmptyTagHelper($var)
 {
@@ -9,13 +17,13 @@ function Tag_removeEmptyTagHelper($var)
 }
 
 class Tag {
-	function doesExist($tag) {
+	static function doesExist($tag) {
 		global $database;
 		return POD::queryCount("SELECT id FROM {$database['prefix']}Tags WHERE name = '".$tag."' LIMIT 1");
 	}
 	
 	/*@static@*/
-	function addTagsWithEntryId($blogid, $entry, /*string array*/$taglist)
+	static function addTagsWithEntryId($blogid, $entry, /*string array*/$taglist)
 	{
 		requireComponent('Needlworks.Cache.PageCache');
 		global $database;
@@ -73,7 +81,7 @@ class Tag {
 	}
 
 	/*@static@*/
-	function modifyTagsWithEntryId($blogid, $entry, /*string array*/$taglist)
+	static function modifyTagsWithEntryId($blogid, $entry, /*string array*/$taglist)
 	{
 		global $database;
 		
@@ -179,7 +187,7 @@ class Tag {
 	}
 
 	/*@static@*/
-	function deleteTagsWithEntryId($blogid, $entry)
+	static function deleteTagsWithEntryId($blogid, $entry)
 	{
 		global $database;
 		$taglist = POD::queryColumn("SELECT tag FROM {$database['prefix']}TagRelations WHERE blogid = $blogid AND entry = $entry");
@@ -200,7 +208,7 @@ class Tag {
 			}		
 		}
 	}
-	function getTagsWithEntryId($blogid, $entry) {
+	static function getTagsWithEntryId($blogid, $entry) {
 		global $database;
 		$tags = array();
 		foreach(POD::queryAll("SELECT DISTINCT name FROM {$database['prefix']}Tags, {$database['prefix']}TagRelations WHERE id = tag AND blogid = $blogid AND entry = {$entry['id']} ORDER BY name") as $tag) {
@@ -208,7 +216,7 @@ class Tag {
 		}
 		return $tags;
 	}
-	function _getMaxId() {
+	static function _getMaxId() {
 		global $database;
 		$maxId = POD::queryCell("SELECT max(id) FROM {$database['prefix']}Tags");
 		if($maxId) return $maxId;

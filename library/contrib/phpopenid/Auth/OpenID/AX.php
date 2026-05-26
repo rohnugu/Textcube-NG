@@ -69,7 +69,7 @@ function Auth_OpenID_AX_checkAlias($alias)
  * @package OpenID
  */
 class Auth_OpenID_AX_Error {
-    function Auth_OpenID_AX_Error($message=null)
+    function __construct($message=null)
     {
         $this->message = $message;
     }
@@ -136,6 +136,7 @@ class Auth_OpenID_AX_Message extends Auth_OpenID_Extension {
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_OpenID_AX_AttrInfo {
     /**
      * Construct an attribute information object.  Do not call this
@@ -151,7 +152,7 @@ class Auth_OpenID_AX_AttrInfo {
      * @param string $alias The name that should be given to this
      * attribute in the request.
      */
-    function Auth_OpenID_AX_AttrInfo($type_uri, $count, $required,
+    function __construct($type_uri, $count, $required,
                                      $alias)
     {
         /**
@@ -265,11 +266,12 @@ function Auth_OpenID_AX_toTypeURIs($namespace_map, $alias_list_s)
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_OpenID_AX_FetchRequest extends Auth_OpenID_AX_Message {
 
     var $mode = 'fetch_request';
 
-    function Auth_OpenID_AX_FetchRequest($update_url=null)
+    function __construct($update_url=null)
     {
         /**
          * requested_attributes: The attributes that have been
@@ -538,9 +540,10 @@ class Auth_OpenID_AX_FetchRequest extends Auth_OpenID_AX_Message {
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_OpenID_AX_KeyValueMessage extends Auth_OpenID_AX_Message {
 
-    function Auth_OpenID_AX_KeyValueMessage()
+    function __construct()
     {
         $this->data = array();
     }
@@ -793,9 +796,9 @@ class Auth_OpenID_AX_KeyValueMessage extends Auth_OpenID_AX_Message {
 class Auth_OpenID_AX_FetchResponse extends Auth_OpenID_AX_KeyValueMessage {
     var $mode = 'fetch_response';
 
-    function Auth_OpenID_AX_FetchResponse($update_url=null)
+    function __construct($update_url=null)
     {
-        $this->Auth_OpenID_AX_KeyValueMessage();
+        parent::__construct();
         $this->update_url = $update_url;
     }
 
@@ -990,7 +993,7 @@ class Auth_OpenID_AX_StoreResponse extends Auth_OpenID_AX_Message {
         return new Auth_OpenID_AX_StoreResponse($succeeded, $error_message);
     }
 
-    function Auth_OpenID_AX_StoreResponse($succeeded=true, $error_message=null)
+    function __construct($succeeded=true, $error_message=null)
     {
         if ($succeeded) {
             $this->mode = $this->SUCCESS_MODE;

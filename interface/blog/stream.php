@@ -22,7 +22,11 @@ $conditions['linesforpage'] = $_POST['lines'];
 
 $skin = new Skin($context->getProperty('skin.skin'));
 	
+$isOwner = doesHaveOwnership();
 $line = Model_Line::getInstance();
+if ($isOwner && !isset($conditions['category'])) {
+	$conditions['blogid'] = getBlogId();
+}
 $stream = $line->getWithConditions($conditions);
 
 $contentView = '';
@@ -30,7 +34,7 @@ $contentView = '';
 foreach ($stream as $item) {
 	$time = Timestamp::getHumanReadable($item['created']);
 	if($item['root'] == 'default') $item['root'] = 'Textcube Line';
-	$contentView .= str_replace(
+	$rendered = str_replace(
 		array(
 			'[##_line_rep_regdate_##]',
 			'[##_line_rep_content_##]',
@@ -47,6 +51,17 @@ foreach ($stream as $item) {
 		),
 		$skin->lineItem
 	);
+	if ($isOwner) {
+		$toggleLabel = ($item['category'] === 'public') ? _t('비공개로') : _t('공개로');
+		$deleteLabel = _t('삭제');
+		$adminDd = '<dd class="tc-line-admin" data-id="'.intval($item['id']).'" data-category="'.htmlspecialchars($item['category']).'">'
+			.'<button class="tc-line-toggle" onclick="tcToggleLineCategory('.intval($item['id']).', this);return false;">'.htmlspecialchars($toggleLabel).'</button>'
+			.' <button class="tc-line-delete" onclick="tcDeleteLine('.intval($item['id']).');return false;">'.htmlspecialchars($deleteLabel).'</button>'
+			.'</dd>';
+		$rendered = preg_replace('|</dl>|', $adminDd.'</dl>', $rendered, 1);
+		$rendered = '<div class="tc-line-item" data-line-id="'.intval($item['id']).'">'.$rendered.'</div>';
+	}
+	$contentView .= $rendered;
 }
 
 if(empty($stream)) {

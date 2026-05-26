@@ -244,7 +244,9 @@ function treatPluginTable($plugin, $name, $fields, $keys, $version) {
                 }
             }
             $isNull = ($field['isnull'] == 0) ? ' NOT NULL ' : ' NULL ';
-            $defaultValue = is_null($field['default']) ? '' : " DEFAULT '" . POD::escapeString($field['default']) . "' ";
+            $noDefaultTypes = ['text','blob','longtext','mediumtext','tinytext','longblob','mediumblob','tinyblob','json'];
+            $hasDefault = !is_null($field['default']) && !in_array(strtolower($field['attribute']), $noDefaultTypes);
+            $defaultValue = $hasDefault ? " DEFAULT '" . POD::escapeString($field['default']) . "' " : '';
             $fieldLength = ($field['length'] >= 0) ? "(" . $field['length'] . ")" : '';
             $sentence = $field['name'] . " " . $field['attribute'] . $fieldLength . $isNull . $defaultValue . $ai . ",";
             $query .= $sentence;
@@ -746,6 +748,18 @@ function handleConfig($plugin) {
             $pluginURL = $context->getProperty('plugin.uri'); // Legacy plugin support.
             $pluginPath = $context->getProperty('plugin.path');
             $pluginName = $context->getProperty('plugin.name');
+
+            // Loading locale resource (PHP 7.4: initialize to avoid undefined variable Fatal Error)
+            $languageDomain = null;
+            if (is_dir($pluginPath . '/locale/')) {
+                $locale = Locales::getInstance();
+                $languageDomain = $locale->domain;
+                if (file_exists($pluginPath . '/locale/' . $locale->defaultLanguage . '.php')) {
+                    $locale->setDirectory($pluginPath . '/locale');
+                    $locale->set($locale->defaultLanguage, $pluginName);
+                    $locale->domain = $pluginName;
+                }
+            }
 
             include_once(ROOT . "/plugins/$plugin/index.php");
             if (function_exists($handler)) {

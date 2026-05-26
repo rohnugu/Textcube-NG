@@ -54,12 +54,7 @@ class Auth_OpenID_CryptUtil {
             }
         }
         if ($f === false) {
-            // pseudorandom used
-            $bytes = '';
-            for ($i = 0; $i < $num_bytes; $i += 4) {
-                $bytes .= pack('L', mt_rand());
-            }
-            $bytes = substr($bytes, 0, $num_bytes);
+            $bytes = random_bytes($num_bytes); // CSPRNG (PHP 7.0+), replaces mt_rand() fallback
         } else {
             $bytes = fread($f, $num_bytes);
         }

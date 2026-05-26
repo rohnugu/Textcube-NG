@@ -273,6 +273,7 @@ class Auth_Yadis_ManagerLoader extends Auth_Yadis_SessionLoader {
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_Yadis_Manager {
 
     /**
@@ -280,7 +281,7 @@ class Auth_Yadis_Manager {
      *
      * @access private
      */
-    function Auth_Yadis_Manager($starting_url, $yadis_url,
+    function __construct($starting_url, $yadis_url,
                                     $services, $session_key)
     {
         // The URL that was used to initiate the Yadis protocol
@@ -366,6 +367,7 @@ class Auth_Yadis_Manager {
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_Yadis_Discovery {
 
     /**
@@ -387,7 +389,7 @@ class Auth_Yadis_Discovery {
      * @param string $session_key_suffix The optional session key
      * suffix override.
      */
-    function Auth_Yadis_Discovery($session, $url,
+    function __construct($session, $url,
                                       $session_key_suffix = null)
     {
         /// Initialize a discovery object

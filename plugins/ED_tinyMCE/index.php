@@ -94,9 +94,7 @@ function tinyMCE_editorinit($editor) {
     					indentWithTabs: true,
     					theme: '<?php echo $config['srctheme'] ?>'
 					},
-					jsFiles: [          // Additional JS files to load
-					'<?php echo implode('\',\'',$config['codemirror_jsfiles']);?>'
-					],
+					jsFiles: <?php echo json_encode($config['codemirror_jsfiles']); ?>,
 					cssFiles: [
 						'theme/<?php echo $config['srctheme'] ?>.css'
 					],

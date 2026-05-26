@@ -20,6 +20,7 @@ Validator::addRule($customIV);
 if(!Validator::isValid())
 	Respond::PrintResult(array('error' => 1, 'description' => 'Illegal parameters'));
 requireStrictRoute();
+$suri['id'] = (int)$suri['id'];
 
 if (!Setting::getBlogSettingGlobal('acceptComments',0) && !doesHaveOwnership()) {
 	Respond::PrintResult(array('error' => 0, 'commentBlock' => '', 'recentCommentBlock' => ''));
@@ -29,10 +30,12 @@ if ((doesHaveMembership() || !empty($_POST['name'])) && !empty($_POST['comment']
 	if (!empty($_POST['name']))
 		setcookie('guestName', $_POST['name'], time() + 2592000, "$blogURL/");
 	if (!empty($_POST['homepage']) && ($_POST['homepage'] != 'http://')) {
-		if (strpos($_POST['homepage'], 'http://') === 0)
-			setcookie('guestHomepage', $_POST['homepage'], time() + 2592000, "$blogURL/");
-		else
-			setcookie('guestHomepage', 'http://' . $_POST['homepage'], time() + 2592000, "$blogURL/");
+		if (!preg_match('/^\s*javascript\s*:/i', $_POST['homepage'])) {
+			if (strpos($_POST['homepage'], 'http://') === 0)
+				setcookie('guestHomepage', $_POST['homepage'], time() + 2592000, "$blogURL/");
+			else
+				setcookie('guestHomepage', 'http://' . $_POST['homepage'], time() + 2592000, "$blogURL/");
+		}
 	}
 	$comment = array();
 	list($comment['entry']) = getCommentAttributes($blogid, $suri['id'], 'entry');
@@ -87,7 +90,7 @@ if ((doesHaveMembership() || !empty($_POST['name'])) && !empty($_POST['comment']
 			loader = opener;
 		}
 		try {
-			var obj = loader.document.getElementById("entry<?php echo $comment['entry'];?>Comment");
+			var obj = loader.document.getElementById("entry<?php echo (int)$comment['entry'];?>Comment");
 			obj.innerHTML = "<?php echo str_innerHTML($tempComments);?>";
 		} catch(e) { }
 		try {
@@ -100,11 +103,11 @@ if ((doesHaveMembership() || !empty($_POST['name'])) && !empty($_POST['comment']
 			list($tempTag, $commentView) = getCommentCountPart($commentCount, $skin);
 			$commentCount = ($commentCount > 0) ? "($commentCount)" : '';
 ?>
-			obj = loader.document.getElementById("commentCount<?php echo $comment['entry'];?>");
+			obj = loader.document.getElementById("commentCount<?php echo (int)$comment['entry'];?>");
 			if (obj != null) obj.innerHTML = "<?php echo str_innerHTML($commentView);?>";
 		} catch(e) { }
 		try {
-			obj = loader.document.getElementById("commentCountOnRecentEntries<?php echo $comment['entry'];?>");
+			obj = loader.document.getElementById("commentCountOnRecentEntries<?php echo (int)$comment['entry'];?>");
 			if (obj != null) obj.innerHTML = "<?php echo str_innerHTML($commentCount);?>";
 		} catch(e) { }
 		try {

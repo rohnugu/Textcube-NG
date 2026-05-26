@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 define('__TEXTCUBE_SETUP__',true);
 header('Content-Type: text/html; charset=utf-8');
@@ -26,14 +34,6 @@ foreach ($bootFiles as $bf) {
 	require_once($bf);
 }
 unset($bootFiles);
-if (get_magic_quotes_gpc()) {
-    foreach ($_GET as $key => $value)
-        $_GET[$key] = stripslashes($value);
-    foreach ($_POST as $key => $value)
-        $_POST[$key] = stripslashes($value);
-    foreach ($_COOKIE as $key => $value)
-        $_COOKIE[$key] = stripslashes($value);
-}
 $host = explode(':', $_SERVER['HTTP_HOST']);
 if (count($host) > 1) {
 	$_SERVER['HTTP_HOST'] = $host[0];
@@ -325,8 +325,8 @@ function checkStep($step, $check = true) {
         <td>
 <?php
 $dbmsSupport = array();
-if(function_exists('mysql_connect')) array_push($dbmsSupport,'MySQL');
 if(function_exists('mysqli_connect')) array_push($dbmsSupport,'MySQLi');
+if(class_exists('mysqli')) array_push($dbmsSupport,'MySQL');
 if(function_exists('pg_connect')) array_push($dbmsSupport,'PostgreSQL');
 if(class_exists('SQLite3')) array_push($dbmsSupport,'SQLite3');
 if(function_exists('cubrid_connect')) array_push($dbmsSupport,'Cubrid');
@@ -492,7 +492,6 @@ fread
 fsockopen
 function_exists
 fwrite
-get_magic_quotes_gpc
 getimagesize
 gmdate
 gmmktime
@@ -1334,7 +1333,15 @@ ini_set('display_errors', 'off');
 \$service['skin'] = 'periwinkle';
 \$service['favicon_daily_traffic'] = 10; // 10MB
 \$service['useSSL'] = {$useSSL};  // Force SSL protocol (via https)
-//\$serviceURL = 'http://{$_POST['domain']}{$path}' ; // for path of Skin, plugin and etc.
+//\$service['memcached'] = true;  // Uncomment to enable memcached session/cache
+//\$memcached['server'] = 'localhost';  // memcached server hostname (default: localhost)
+//\$memcached['port'] = 11211;          // memcached port (default: 11211)
+//\$serviceURL = 'http://{$_POST['domain']}{$path}' ; // Override service base URL (skin/plugin/resource paths).
+                                      // Required when behind NAT/port-forwarding: e.g. 'http://example.com:8080'
+                                      // *Especially required* when \$service['memcached']=true on a NAT/port-forwarded
+                                      // host: skin/feed caches bake the absolute URL at write time and are shared
+                                      // across requests via memcached, so the external URL must be pinned here to
+                                      // avoid leaking the internal hostname/port back to clients.
 //\$service['reader'] = true; // Use Textcube reader. You can set it to false if you do not use Textcube reader, and want to decrease DB load.
 //\$service['debugmode'] = true; // uncomment for debugging, e.g. displaying DB Query or Session info
 //\$service['pagecache'] = false; // uncomment if you want to disable page cache feature.

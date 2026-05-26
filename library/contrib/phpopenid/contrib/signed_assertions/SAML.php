@@ -177,7 +177,7 @@ class SAML{
       $rndChars = 'abcdefghijklmnop';
       $rndId = '';
       for ($i = 0; $i < 40; $i++ ) {
-         $rndId .= $rndChars[rand(0,strlen($rndChars)-1)];
+         $rndId .= $rndChars[random_int(0, strlen($rndChars)-1)];
       }
       return $rndId;
    }

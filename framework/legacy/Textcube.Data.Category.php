@@ -4,6 +4,7 @@
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 
 
+#[AllowDynamicProperties]
 class Category {
 	function __construct() {
 		$this->reset();
@@ -37,7 +38,7 @@ class Category {
 			if ($filter)
 				$pool->setQualifier('parent',null);
 		} else if (!empty($filter)) {
-			$condition = array_map(create_function('$s','return trim($s);'), explode('=',$filter));
+			$condition = array_map(fn($s) => trim($s), explode('=',$filter));
 			$pool->setQualifier($condition[0],'equals',$condition[1]);
 		}
 		if (!empty($sort))

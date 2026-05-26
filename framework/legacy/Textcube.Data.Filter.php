@@ -2,8 +2,9 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+#[AllowDynamicProperties]
 class Filter {
-	function Filter() {
+	function __construct() {
 		$this->reset();
 	}
 
@@ -103,7 +104,7 @@ class Filter {
 	}
 	
 	/*@static@*/
-	function isFiltered($type, $value) {
+	public static function isFiltered($type, $value) {
 		global $database;
 
 		switch ($type) {
@@ -133,7 +134,7 @@ class Filter {
 	}
 
 	/*@static@*/
-	function isAllowed($whiteurl) {
+	public static function isAllowed($whiteurl) {
 		if(empty($whiteurl)) return false;
 		$whiteurl = strtolower($whiteurl);
 		$query = DBModel::getInstance();

@@ -3,9 +3,10 @@
 requireComponent( "Needlworks.Mail.Pop3" );
 requireModel( "common.setting" );
 
+#[AllowDynamicProperties]
 class Moblog
 {
-	function Moblog( $options )
+	function __construct( $options )
 	{
 		global $pop3logs;
 		if( !isset($debugLogs) ) {
@@ -18,9 +19,17 @@ class Moblog
 		$this->recentCount = 100;
 		$visibilities = array( "private", "protected", "public", "syndicated" );
 		$this->visibility = $visibilities[$this->visibility];
-		$this->allow = preg_split( "@[,\s]+@", $this->allow ) ;
+		// 빈 문자열 항목 제거 — preg_split('', '') 은 [''] 을 반환하며 strstr($from, '') 가 PHP 8 에서 ValueError 를 일으킴
+		$this->allow = array_values(array_filter(preg_split("@[,\s]+@", $this->allow), 'strlen'));
 
-		$this->pop3 = new Pop3();
+		// 프로토콜에 따라 POP3 또는 IMAP 클라이언트 생성 — 외부 인터페이스 동일
+		if (!empty($this->protocol) && $this->protocol === 'imap') {
+			$this->pop3 = new Imap();
+			$folder = !empty($this->imapfolder) ? $this->imapfolder : 'INBOX';
+			$this->pop3->setFolder($folder);
+		} else {
+			$this->pop3 = new Pop3();
+		}
 		$this->pop3->setLogger( array(&$this,'log') );
 		$this->pop3->setStatCallback( array(&$this,'statCallback') );
 		$this->pop3->setUidFilter( array(&$this,'checkUid') );
@@ -71,11 +80,13 @@ class Moblog
 
 	function check()
 	{
+		$sslLabel = ['none' => '', 'ssl' => '(SSL/TLS)', 'starttls' => '(STARTTLS)'][$this->ssl] ?? '';
 		if( !$this->pop3->connect( $this->host, $this->port, $this->ssl ) ) {
-			$this->log( "* "._t("접속 실패")." : ".$this->host.":".$this->port.($this->ssl?"(SSL)":"(no SSL)") );
+			$err = $this->pop3->getLastError();
+			$this->log( "* "._t("접속 실패")." : ".$this->host.":".$this->port.$sslLabel.($err ? " [$err]" : "") );
 			return false;
 		}
-		$this->log( "* "._t("접속 성공")." : ".$this->host.":".$this->port.($this->ssl?"(SSL)":"(no SSL)") );
+		$this->log( "* "._t("접속 성공")." : ".$this->host.":".$this->port.$sslLabel );
 		if( !$this->pop3->authorize( $this->username, $this->password ) ) {
 			$this->log( "* "._t("인증 실패") );
 			return false;
@@ -120,10 +131,10 @@ class Moblog
 
 	function isAllowed( & $mail )
 	{
-		if( isset( $mail['from'] ) && is_array( $this->allow) ) {
+		// 실제 발신 주소($mail['from'])만 허용 목록과 대조 — 표시 이름($mail['sender'])은 발신자가 임의로 설정 가능하므로 검사 제외
+		if( isset( $mail['from'] ) && !empty($this->allow) ) {
 			foreach( $this->allow as $a ) {
-				if( strstr( $mail['from'], $a ) !== false ) return true; 
-				if( isset($mail['sender']) && strstr( $mail['sender'], $a ) !== false ) return true; 
+				if( strstr( $mail['from'], $a ) !== false ) return true;
 			}
 		}
 		if( $this->allowonly ) {
@@ -190,7 +201,7 @@ class Moblog
 		$p = '/{([^}:;]*)}/';
 		$tags = array();
 		if( preg_match( $p, $mail['text'], $m ) ) {
-			$tags = split( ',', $m[1] );
+			$tags = explode( ',', $m[1] );
 			$mail['text'] = preg_replace( $p, '', $mail['text'] );
 		}
 		return $tags;
@@ -312,15 +323,32 @@ function moblog_check()
 		echo "<html><body style=\"font-size:0.9em\">";
 		echo "<style>.emplog{color:red}.oklog{color:blue}</style>";
 		echo "<ul>";
-		echo join( "", 
+		$logFile = ROOT.DS."cache".DS."moblog.txt";
+		$logContent = file_exists($logFile) ? file_get_contents($logFile) : '';
+		echo join( "",
 			array_map(
-				create_function( '$li', 'return preg_match( "/^\S+\s+\S+\s+\*/", $li ) ? 
-						(preg_match( "/\[OK\]/", $li ) ? "<li class=\"oklog\">$li</li>" : "<li class=\"emplog\">$li</li>") 
-						: "<li>$li</li>";'), 
-				split( "\n",Moblog::decorate_log(file_get_contents(ROOT.DS."cache".DS."moblog.txt")))
+				function($li) {
+					return preg_match('/^\S+\s+\S+\s+\*/', $li) ?
+						(preg_match('/\[OK\]/', $li) ? "<li class=\"oklog\">$li</li>" : "<li class=\"emplog\">$li</li>")
+						: "<li>$li</li>";
+				},
+				explode( "\n", Moblog::decorate_log($logContent) )
 			)
 		);
 		echo "</ul>";
+		echo "</body></html>";
+		exit;
+	}
+
+	if( isset($_GET['clearlog']) && $_GET['clearlog'] == 1 ) {
+		echo "<html><body style=\"font-size:0.9em\">";
+		if( Acl::check('group.administrators') ) {
+			$logFile = ROOT.DS."cache".DS."moblog.txt";
+			file_put_contents($logFile, '');
+			echo "<p style=\"color:green;\">&#10003; " . _t('로그가 삭제되었습니다.') . "</p>";
+		} else {
+			echo "<p style=\"color:red;\">" . _t('권한이 없습니다.') . "</p>";
+		}
 		echo "</body></html>";
 		exit;
 	}
@@ -329,20 +357,22 @@ function moblog_check()
 	echo '<html>';
 	echo '<head><meta http-equiv="content-type" content="text/html; charset=utf-8" />';
 	echo '<body style="font-size:0.9em"><ul><li>';
-	$moblog = new Moblog( 
-		array( 
-			'username' => Setting::getBlogSettingGlobal( 'MmsPop3Username', '' ),
-			'password' => Setting::getBlogSettingGlobal( 'MmsPop3Password', '' ),
-			'host' => Setting::getBlogSettingGlobal( 'MmsPop3Host', 'localhost' ),
-			'port' => Setting::getBlogSettingGlobal( 'MmsPop3Port', 110 ),
-			'ssl' => Setting::getBlogSettingGlobal( 'MmsPop3Ssl', 0 ),
-			'userid' => Setting::getBlogSettingGlobal( 'MmsPop3Fallbackuserid', 1 ),
-			'minsize' => Setting::getBlogSettingGlobal( 'MmsPop3MinSize', 0 )*1024,
+	$moblog = new Moblog(
+		array(
+			'username'   => Setting::getBlogSettingGlobal( 'MmsPop3Username', '' ),
+			'password'   => Setting::getBlogSettingGlobal( 'MmsPop3Password', '' ),
+			'host'       => Setting::getBlogSettingGlobal( 'MmsPop3Host', 'localhost' ),
+			'port'       => Setting::getBlogSettingGlobal( 'MmsPop3Port', 110 ),
+			'ssl'        => Setting::getBlogSettingGlobal( 'MmsPop3Ssl', 'none' ),
+			'protocol'   => Setting::getBlogSettingGlobal( 'MmsPop3Protocol', 'pop3' ),
+			'imapfolder' => Setting::getBlogSettingGlobal( 'MmsPop3ImapFolder', 'INBOX' ),
+			'userid'     => Setting::getBlogSettingGlobal( 'MmsPop3Fallbackuserid', 1 ),
+			'minsize'    => Setting::getBlogSettingGlobal( 'MmsPop3MinSize', 0 )*1024,
 			'visibility' => Setting::getBlogSettingGlobal( 'MmsPop3Visibility', '2' ),
-			'category' => Setting::getBlogSettingGlobal( 'MmsPop3Category', 0 ), 
-			'allowonly' => Setting::getBlogSettingGlobal( 'MmsPop3AllowOnly', '0' ),
-			'allow' => Setting::getBlogSettingGlobal( 'MmsPop3Allow', '' ),
-			'subject' => Setting::getBlogSettingGlobal( 'MmsPop3Subject', '%Y-%M-%D' ) ) 
+			'category'   => Setting::getBlogSettingGlobal( 'MmsPop3Category', 0 ),
+			'allowonly'  => Setting::getBlogSettingGlobal( 'MmsPop3AllowOnly', '0' ),
+			'allow'      => Setting::getBlogSettingGlobal( 'MmsPop3Allow', '' ),
+			'subject'    => Setting::getBlogSettingGlobal( 'MmsPop3Subject', '%Y-%M-%D' ) )
 	);
 	$moblog->log( "--BEGIN--" );
 	$moblog->check();
@@ -366,24 +396,34 @@ function moblog_manage()
 {
 	global $blogURL;
 	if( Acl::check('group.administrators') && $_SERVER['REQUEST_METHOD'] == 'POST' ) {
-		Setting::setBlogSettingGlobal( 'MmsPop3Email', $_POST['pop3email'] );
-		Setting::setBlogSettingGlobal( 'MmsPop3Host', $_POST['pop3host'] );
-		Setting::setBlogSettingGlobal( 'MmsPop3Port', $_POST['pop3port'] );
-		Setting::setBlogSettingGlobal( 'MmsPop3Ssl', !empty($_POST['pop3ssl'])?1:0 );
-		Setting::setBlogSettingGlobal( 'MmsPop3Username', $_POST['pop3username'] );
-		Setting::setBlogSettingGlobal( 'MmsPop3Password', $_POST['pop3password'] );
-		Setting::setBlogSettingGlobal( 'MmsPop3Visibility', $_POST['pop3visibility'] );
-		Setting::setBlogSettingGlobal( 'MmsPop3Category', $_POST['pop3category'] );
+		Setting::setBlogSettingGlobal( 'MmsPop3Email', $_POST['pop3email'] ?? '' );
+		Setting::setBlogSettingGlobal( 'MmsPop3Host', $_POST['pop3host'] ?? '' );
+		$pop3portVal = (int)($_POST['pop3port'] ?? 110);
+		if ($pop3portVal < 1 || $pop3portVal > 65535) $pop3portVal = 110;
+		Setting::setBlogSettingGlobal( 'MmsPop3Port', $pop3portVal );
+		$sslVal = in_array($_POST['pop3ssl'] ?? '', ['ssl', 'starttls'], true) ? $_POST['pop3ssl'] : 'none';
+		Setting::setBlogSettingGlobal( 'MmsPop3Ssl', $sslVal );
+		Setting::setBlogSettingGlobal( 'MmsPop3Username', $_POST['pop3username'] ?? '' );
+		Setting::setBlogSettingGlobal( 'MmsPop3Password', $_POST['pop3password'] ?? '' );
+		$visibilityVal = (int)($_POST['pop3visibility'] ?? 2);
+		if (!in_array($visibilityVal, [0, 1, 2, 3], true)) $visibilityVal = 2;
+		Setting::setBlogSettingGlobal( 'MmsPop3Visibility', $visibilityVal );
+		Setting::setBlogSettingGlobal( 'MmsPop3Category', max(0, (int)($_POST['pop3category'] ?? 0)) );
 		Setting::setBlogSettingGlobal( 'MmsPop3Fallbackuserid', getUserId() );
 		Setting::setBlogSettingGlobal( 'MmsPop3MinSize', 0 );
 		Setting::setBlogSettingGlobal( 'MmsPop3AllowOnly', !empty($_POST['pop3allowonly'])?1:0 );
-		Setting::setBlogSettingGlobal( 'MmsPop3Allow', $_POST['pop3allow'] );
-		Setting::setBlogSettingGlobal( 'MmsPop3Subject', $_POST['pop3subject'] );
+		Setting::setBlogSettingGlobal( 'MmsPop3Allow', substr(trim($_POST['pop3allow'] ?? ''), 0, 512) );
+		Setting::setBlogSettingGlobal( 'MmsPop3Subject', $_POST['pop3subject'] ?? '' );
+		$protocolVal = (isset($_POST['pop3protocol']) && $_POST['pop3protocol'] === 'imap') ? 'imap' : 'pop3';
+		Setting::setBlogSettingGlobal( 'MmsPop3Protocol', $protocolVal );
+		$folderVal = substr(trim($_POST['pop3imapfolder'] ?? 'INBOX'), 0, 64);
+		Setting::setBlogSettingGlobal( 'MmsPop3ImapFolder', $folderVal ?: 'INBOX' );
 	}
 	$pop3email = Setting::getBlogSettingGlobal( 'MmsPop3Email', '' );
 	$pop3host = Setting::getBlogSettingGlobal( 'MmsPop3Host', 'localhost' );
 	$pop3port = Setting::getBlogSettingGlobal( 'MmsPop3Port', 110 );
-	$pop3ssl = Setting::getBlogSettingGlobal( 'MmsPop3Ssl', 0 ) ? " checked=1 " : "";
+	$pop3ssl = Setting::getBlogSettingGlobal( 'MmsPop3Ssl', 'none' );
+	if (!in_array($pop3ssl, ['ssl', 'starttls'], true)) $pop3ssl = 'none';
 	$pop3username = Setting::getBlogSettingGlobal( 'MmsPop3Username', '' );
 	$pop3password = Setting::getBlogSettingGlobal( 'MmsPop3Password', '' );
 	$pop3minsize = Setting::getBlogSettingGlobal( 'MmsPop3MinSize', 0 );
@@ -393,6 +433,8 @@ function moblog_manage()
 	$pop3mmsallowonly = Setting::getBlogSettingGlobal( 'MmsPop3AllowOnly', '0' );
 	$pop3mmsallow = Setting::getBlogSettingGlobal( 'MmsPop3Allow', '' );
 	$pop3subject = Setting::getBlogSettingGlobal( 'MmsPop3Subject', '%Y-%M-%D' );
+	$pop3protocol = Setting::getBlogSettingGlobal( 'MmsPop3Protocol', 'pop3' );
+	$pop3imapfolder = Setting::getBlogSettingGlobal( 'MmsPop3ImapFolder', 'INBOX' );
 ?>
 						<hr class="hidden" />
 						
@@ -420,20 +462,45 @@ function moblog_manage()
 								</div>
 <?php else: ?>
 							<script type="text/javascript">
+							// 프로토콜 라디오에 따라 IMAP 폴더 입력 행 표시/숨김
+							function updateProtocolUI(proto) {
+								var line = document.getElementById('imap-folder-line');
+								if (line) line.style.display = (proto === 'imap') ? '' : 'none';
+							}
+							// 미리 설정된 서버 선택 시 호스트·포트·암호화·프로토콜을 한 번에 적용
+							// 값 형식: "host:port:sslmode:protocol"  sslmode = none | ssl | starttls
 							function changehost(packedhost)
 							{
 								var h = packedhost.split( ':' );
 								document.forms['editor-form']['pop3host'].value = h[0];
 								document.forms['editor-form']['pop3port'].value = h[1];
-								document.forms['editor-form']['pop3ssl'].checked = !!parseInt(h[2]);
+								var sslMode = h[2] || 'none';
+								var sslRadios = document.querySelectorAll('input[name="pop3ssl"]');
+								for( var i = 0; i < sslRadios.length; i++ ) {
+									sslRadios[i].checked = (sslRadios[i].value === sslMode);
+								}
+								if( h[3] ) {
+									var protos = document.querySelectorAll('input[name="pop3protocol"]');
+									for( var i = 0; i < protos.length; i++ ) {
+										protos[i].checked = (protos[i].value === h[3]);
+									}
+									updateProtocolUI(h[3]);
+								}
 							}
+							// 값 형식: "표시이름:host:port:sslmode:protocol"  sslmode = none | ssl | starttls
 							function renderhosts()
 							{
 								var hosts = "<?php echo _t('PREDEFINED POP3 HOSTS') ?>";
 								if( hosts == 'PREDEFINED POP3 HOSTS' ) {
-									hosts = "gmail:pop.gmail.com:995:1/hanmail:pop.hanmail.net:995:1/naver:pop.naver.com:110:0/nate:mail.nate.com:110:0";
+									hosts = "gmail POP3:pop.gmail.com:995:ssl:pop3"
+										+ "/gmail IMAP:imap.gmail.com:993:ssl:imap"
+										+ "/hanmail POP3:pop.hanmail.net:995:ssl:pop3"
+										+ "/hanmail IMAP:imap.daum.net:993:ssl:imap"
+										+ "/naver POP3:pop.naver.com:995:ssl:pop3"
+										+ "/naver IMAP:imap.naver.com:993:ssl:imap"
+										+ "/nate POP3:mail.nate.com:110:none:pop3";
 								}
-								hosts = "Localhost:localhost:110:0/" + hosts;
+								hosts = "Localhost POP3:localhost:110:none:pop3/" + hosts;
 								hosts = hosts.split('/');
 								for( var i=0; i<hosts.length; i++ ) {
 									var h = hosts[i];
@@ -441,7 +508,6 @@ function moblog_manage()
 									var v = h.substr(n.length+1);
 									document.write( "<option value=\""+v+"\">"+n+"</option>" );
 								}
-								
 							}
 							</script>
 							<form id="editor-form" class="data-inbox" method="post" action="<?php echo $blogURL;?>/owner/plugin/adminMenu?name=CL_Moblog/moblog_manage">
@@ -452,14 +518,36 @@ function moblog_manage()
 										<dl id="formatter-line" class="line">
 											<dt><span class="label"><?php echo _t('MMS용 이메일');?></span></dt>
 											<dd>
-												<input type="text" style="width:14em" class="input-text" name="pop3email" value="<?php echo $pop3email;?>" /> 
+												<input type="text" style="width:14em" class="input-text" name="pop3email" value="<?php echo htmlspecialchars($pop3email, ENT_QUOTES, 'UTF-8');?>" />
 												<?php echo _t('(필진에 공개 됩니다. 사진을 찍어 이메일로 보내면 포스팅이 됩니다)'); ?>
 											</dd>
 										</dl>
-										<dl id="formatter-line" class="line">
-											<dt><span class="label"><?php echo _t('POP3 호스트');?></span></dt>
+										<dl id="editor-line" class="line">
+											<dt><span class="label"><?php echo _t('프로토콜');?></span></dt>
 											<dd>
-												<input type="text" style="width:14em" class="input-text" name="pop3host" value="<?php echo $pop3host;?>" />
+												<input type="radio" id="proto_pop3" name="pop3protocol" value="pop3"
+													<?php echo ($pop3protocol !== 'imap') ? 'checked="checked"' : ''; ?>
+													onclick="updateProtocolUI('pop3')" />
+												<label for="proto_pop3">POP3</label>
+												&nbsp;&nbsp;
+												<input type="radio" id="proto_imap" name="pop3protocol" value="imap"
+													<?php echo ($pop3protocol === 'imap') ? 'checked="checked"' : ''; ?>
+													onclick="updateProtocolUI('imap')" />
+												<label for="proto_imap">IMAP</label>
+											</dd>
+										</dl>
+										<dl id="imap-folder-line" class="line" style="<?php echo ($pop3protocol === 'imap') ? '' : 'display:none'; ?>">
+											<dt><span class="label"><?php echo _t('IMAP 폴더');?></span></dt>
+											<dd>
+												<input type="text" style="width:14em" class="input-text" name="pop3imapfolder"
+													value="<?php echo htmlspecialchars($pop3imapfolder, ENT_QUOTES, 'UTF-8');?>" />
+												<span style="color:#888;"><?php echo _t('(기본값: INBOX)');?></span>
+											</dd>
+										</dl>
+										<dl id="formatter-line" class="line">
+											<dt><span class="label"><?php echo _t('메일 서버');?></span></dt>
+											<dd>
+												<input type="text" style="width:14em" class="input-text" name="pop3host" value="<?php echo htmlspecialchars($pop3host, ENT_QUOTES, 'UTF-8');?>" />
 												<select onchange="changehost(this.value)">
 												<option value=""><?php echo _t('선택하세요') ?></option>
 												<script type="text/javascript">renderhosts()</script>
@@ -467,22 +555,38 @@ function moblog_manage()
 											</dd>
 										</dl>
 										<dl id="editor-line" class="line">
-											<dt><span class="label"><?php echo _t('POP3 포트');?></span></dt>
+											<dt><span class="label"><?php echo _t('암호화');?></span></dt>
 											<dd>
-												<input type="text" style="width:14em" class="input-text" name="pop3port" value="<?php echo $pop3port;?>" />
-												<input type="checkbox" name="pop3ssl" value="1" <?php echo $pop3ssl;?> /> SSL
+												<input type="radio" name="pop3ssl" id="ssl_none" value="none"
+												<?php echo ($pop3ssl === 'none')     ? 'checked="checked"' : ''; ?> />
+												<label for="ssl_none"><?php echo _t('없음');?></label>
+												&nbsp;&nbsp;
+												<input type="radio" name="pop3ssl" id="ssl_ssl" value="ssl"
+												<?php echo ($pop3ssl === 'ssl')      ? 'checked="checked"' : ''; ?> />
+												<label for="ssl_ssl">SSL/TLS</label>
+												&nbsp;&nbsp;
+												<input type="radio" name="pop3ssl" id="ssl_starttls" value="starttls"
+												<?php echo ($pop3ssl === 'starttls') ? 'checked="checked"' : ''; ?> />
+												<label for="ssl_starttls">STARTTLS</label>
 											</dd>
 										</dl>
 										<dl id="editor-line" class="line">
-											<dt><span class="label"><?php echo _t('POP3 아이디');?></span></dt>
+											<dt><span class="label"><?php echo _t('서버 포트');?></span></dt>
 											<dd>
-												<input type="text" style="width:14em" class="input-text" name="pop3username" value="<?php echo $pop3username;?>" />
+												<input type="text" style="width:14em" class="input-text" name="pop3port" value="<?php echo htmlspecialchars((string)$pop3port, ENT_QUOTES, 'UTF-8');?>" />
+												<span style="color:#888;"><?php echo _t('(POP3: 110 없음/STARTTLS, 995 SSL · IMAP: 143 없음/STARTTLS, 993 SSL)');?></span>
 											</dd>
 										</dl>
 										<dl id="editor-line" class="line">
-											<dt><span class="label"><?php echo _t('POP3 비밀번호');?></span></dt>
+											<dt><span class="label"><?php echo _t('사용자 아이디');?></span></dt>
 											<dd>
-												<input type="password" style="width:14em" class="input-text" name="pop3password" value="<?php echo $pop3password;?>" />
+												<input type="text" style="width:14em" class="input-text" name="pop3username" value="<?php echo htmlspecialchars($pop3username, ENT_QUOTES, 'UTF-8');?>" />
+											</dd>
+										</dl>
+										<dl id="editor-line" class="line">
+											<dt><span class="label"><?php echo _t('비밀번호');?></span></dt>
+											<dd>
+												<input type="password" style="width:14em" class="input-text" name="pop3password" value="<?php echo htmlspecialchars($pop3password, ENT_QUOTES, 'UTF-8');?>" />
 											</dd>
 										</dl>
 									<div class="button-box">
@@ -494,7 +598,7 @@ function moblog_manage()
 										<dl id="editor-line" class="line">
 											<dt><span class="label"><?php echo _t('제목');?></span></dt>
 											<dd>
-												<input type="text" style="width:24em" class="input-text" id="pop3subject" name="pop3subject" value="<?php echo $pop3subject; ?>" />
+												<input type="text" style="width:24em" class="input-text" id="pop3subject" name="pop3subject" value="<?php echo htmlspecialchars($pop3subject, ENT_QUOTES, 'UTF-8');?>" />
 												(<?php echo _t('%Y:년, %M:월, %D:일');?>) <input type="button" value="<?php echo _t("초기화");?>" onclick="document.getElementById('pop3subject').value='%Y-%M-%D';return false;" />
 											</dd>
 										</dl>
@@ -537,19 +641,17 @@ function moblog_manage()
 											<dt><span class="label"><?php echo _t('허용 목록');?></span></dt>
 											<dd>
 												<input type="radio" id="pop3allowonly" name="pop3allowonly" value="1" <?php echo $pop3mmsallowonly ? 'checked="checked"':'' ?> />
-												<label for="pop3allowonly"><?php echo _t('다음 송신자로부터 전송된 메일만 MMS로 인식하여 처리합니다') ?></label>
+												<label for="pop3allowonly"><?php echo _t('아래 목록의 송신자에게서 온 메일만 MMS로 처리합니다 (목록에 없는 송신자의 메일은 무시됩니다)') ?></label>
 											</dd>
 											<dd>
 												<input type="radio" id="pop3allowlist" name="pop3allowonly" value="0" <?php echo $pop3mmsallowonly ? '':'checked="checked"' ?> />
-												<label for="pop3allowlist"><?php echo _t('다음 송신자로부터 전송된 메일도 MMS로 인식하여 처리합니다'); ?></label>
+												<label for="pop3allowlist"><?php echo _t('아래 목록의 송신자에게서 온 메일을 MMS로 추가 처리합니다 (MMS 헤더가 있는 메일은 목록과 무관하게 항상 처리됩니다)'); ?></label>
 											</dd>
 											<dd>
-												<input type="text" maxlength="128" name="pop3allow" value="<?php echo htmlentities($pop3mmsallow)?>" style="width:90%" />
+												<input type="text" maxlength="512" name="pop3allow" value="<?php echo htmlspecialchars($pop3mmsallow, ENT_QUOTES, 'UTF-8');?>" style="width:90%" />
 											</dd>
 											<dd>
-												<?php echo _t('여러 개인 경우 전화번호 혹은 이메일 주소를 쉼표나 공백으로 구별하여 나열합니다') ?>
-											</dd>
-											<dd>
+												<?php echo _t('전화번호 또는 이메일 주소를 쉼표(,)나 공백으로 구분하여 입력합니다. 예: 01012345678, user@example.com') ?>
 											</dd>
 										</dl>
 									<div class="button-box">
@@ -562,10 +664,13 @@ function moblog_manage()
 									<dl id="formatter-line" class="line">
 										<dt><span class="label"><?php echo _t('명령');?></span></dt>
 										<dd>
-											<input type="button" class="save-button input-button wide-button" value="<?php echo _t('로그보기');?>"  
-												onclick="document.getElementById('pop3_debug').src='<?php echo $blogURL?>/plugin/moblog/check?check=1&rnd='+((new Date()).getTime())" />
-											<input type="button" class="save-button input-button wide-button" value="<?php echo _t('시험하기');?>" 
+											<input type="button" class="save-button input-button wide-button" value="<?php echo _t('로그보기');?>"
+												onclick="document.getElementById('pop3_debug').src='<?php echo $blogURL?>/plugin/moblog/check?check=1&amp;rnd='+((new Date()).getTime())" />
+											<input type="button" class="save-button input-button wide-button" value="<?php echo _t('시험하기');?>"
 												onclick="document.getElementById('pop3_debug').src='<?php echo $blogURL?>/plugin/moblog/check?rnd='+((new Date()).getTime())" />
+											<input type="button" class="input-button wide-button" value="<?php echo _t('로그삭제');?>"
+												style="background:#c0392b;color:#fff;border-color:#922b21;"
+												onclick="if(!confirm('<?php echo htmlspecialchars(_t('로그를 삭제하시겠습니까?'), ENT_QUOTES, 'UTF-8');?>'))return;var f=document.getElementById('pop3_debug');f.src='<?php echo $blogURL?>/plugin/moblog/check?clearlog=1&amp;rnd='+((new Date()).getTime());" />
 										</dd>
 									</dl>
 								</div>

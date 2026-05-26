@@ -22,12 +22,12 @@ function getPagingView( & $paging, & $template, & $itemTemplate, $useSkinCache =
 	if (isset($paging['first'])) {
 		$itemView = "$itemTemplate <li><a class=\"disabled\">&#8230;</a></li> ";
 		dress('paging_rep_link_num', '<span>1</span>', $itemView, $useSkinCache);
-		dress('paging_rep_link', "href='$url$prefix{$paging['first']}$postfix'", $itemView, $useSkinCache);
+		dress('paging_rep_link', "href=\"$url$prefix{$paging['first']}$postfix\"", $itemView, $useSkinCache);
 		print ($itemView);
 	} else if ($paging['page'] > 5) {
 		$itemView = "$itemTemplate <li><a class=\"disabled\">&#8230;</a></li> ";
 		dress('paging_rep_link_num', '<span>1</span>', $itemView, $useSkinCache);
-		dress('paging_rep_link', "href='$url{$prefix}1$postfix'", $itemView, $useSkinCache);
+		dress('paging_rep_link', "href=\"$url{$prefix}1$postfix\"", $itemView, $useSkinCache);
 		print ($itemView);
 	}
 	if (isset($paging['before']))
@@ -38,7 +38,7 @@ function getPagingView( & $paging, & $template, & $itemTemplate, $useSkinCache =
 		foreach ($paging['before'] as $value) {
 			$itemView = $itemTemplate;
 			dress('paging_rep_link_num', "<span>$page</span>", $itemView, $useSkinCache);
-			dress('paging_rep_link', "href='$url$prefix$value$postfix'", $itemView, $useSkinCache);
+			dress('paging_rep_link', "href=\"$url$prefix$value$postfix\"", $itemView, $useSkinCache);
 			print ($itemView);
 			$page++;
 		}
@@ -46,7 +46,7 @@ function getPagingView( & $paging, & $template, & $itemTemplate, $useSkinCache =
 		for ($i = 0; ($i < 4) && ($page < $paging['page']); $i++) {
 			$itemView = $itemTemplate;
 			dress('paging_rep_link_num', "<span>$page</span>", $itemView, $useSkinCache);
-			dress('paging_rep_link', "href='$url$prefix$page$postfix'", $itemView, $useSkinCache);
+			dress('paging_rep_link', "href=\"$url$prefix$page$postfix\"", $itemView, $useSkinCache);
 			print ($itemView);
 			$page++;
 		}
@@ -63,7 +63,7 @@ function getPagingView( & $paging, & $template, & $itemTemplate, $useSkinCache =
 		foreach ($paging['after'] as $value) {
 			$itemView = $itemTemplate;
 			dress('paging_rep_link_num', "<span>$page</span>", $itemView, $useSkinCache);
-			dress('paging_rep_link', "href='$url$prefix$value$postfix'", $itemView, $useSkinCache);
+			dress('paging_rep_link', "href=\"$url$prefix$value$postfix\"", $itemView, $useSkinCache);
 			print ($itemView);
 			$page++;
 		}
@@ -71,7 +71,7 @@ function getPagingView( & $paging, & $template, & $itemTemplate, $useSkinCache =
 		for ($i = 0; ($i < 4) && ($page <= $paging['pages']); $i++) {
 			$itemView = $itemTemplate;
 			dress('paging_rep_link_num', "<span>$page</span>", $itemView, $useSkinCache);
-			dress('paging_rep_link', "href='$url$prefix$page$postfix'", $itemView, $useSkinCache);
+			dress('paging_rep_link', "href=\"$url$prefix$page$postfix\"", $itemView, $useSkinCache);
 			print ($itemView);
 			$page++;
 		}
@@ -79,20 +79,20 @@ function getPagingView( & $paging, & $template, & $itemTemplate, $useSkinCache =
 	if (isset($paging['last'])) {
 		$itemView = " <li class=\"disabled\"><a>&#8230;</a></li> $itemTemplate";
 		dress('paging_rep_link_num', "<span>{$paging['pages']}</span>", $itemView, $useSkinCache);
-		dress('paging_rep_link', "href='$url$prefix{$paging['last']}$postfix'", $itemView, $useSkinCache);
+		dress('paging_rep_link', "href=\"$url$prefix{$paging['last']}$postfix\"", $itemView, $useSkinCache);
 		print ($itemView);
 	} else if (($paging['pages'] - $paging['page']) > 4) {
 		$itemView = " <li class=\"disabled\"><a>&#8230;</a></li> $itemTemplate";
 		dress('paging_rep_link_num', "<span>{$paging['pages']}</span>", $itemView, $useSkinCache);
-		dress('paging_rep_link', "href='$url$prefix{$paging['pages']}$postfix'", $itemView, $useSkinCache);
+		dress('paging_rep_link', "href=\"$url$prefix{$paging['pages']}$postfix\"", $itemView, $useSkinCache);
 		print ($itemView);
 	}
 	$itemsView = ob_get_contents();
 	ob_end_clean();
 	$view = $template;
-	dress('prev_page', isset($paging['prev']) ? "href='$url$prefix{$paging['prev']}$postfix'" : '', $view, $useSkinCache);
+	dress('prev_page', isset($paging['prev']) ? "href=\"$url$prefix{$paging['prev']}$postfix\"" : '', $view, $useSkinCache);
 	dress('paging_rep', $itemsView, $view, $useSkinCache);
-	dress('next_page', isset($paging['next']) ? "href='$url$prefix{$paging['next']}$postfix'" : '', $view, $useSkinCache);
+	dress('next_page', isset($paging['next']) ? "href=\"$url$prefix{$paging['next']}$postfix\"" : '', $view, $useSkinCache);
 	dress('no_more_prev', isset($paging['prev']) ? '' : 'class="disabled"', $view, $useSkinCache);
 	dress('no_more_next', isset($paging['next']) ? '' : 'class="disabled"', $view, $useSkinCache);
 

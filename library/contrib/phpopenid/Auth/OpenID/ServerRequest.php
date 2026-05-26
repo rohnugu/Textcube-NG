@@ -27,8 +27,9 @@ require_once "Auth/OpenID.php";
  * @see Auth_OpenID_Server
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_OpenID_ServerRequest {
-    function Auth_OpenID_ServerRequest()
+    function __construct()
     {
         $this->mode = null;
     }

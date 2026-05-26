@@ -5,6 +5,7 @@
 
 global $__gDressTags;
 
+#[AllowDynamicProperties]
 class Skin {
 	var $outter;
 	var $skin;

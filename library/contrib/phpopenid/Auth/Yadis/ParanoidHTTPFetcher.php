@@ -26,8 +26,9 @@ require_once "Auth/OpenID.php";
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_Yadis_ParanoidHTTPFetcher extends Auth_Yadis_HTTPFetcher {
-    function Auth_Yadis_ParanoidHTTPFetcher()
+    function __construct()
     {
         $this->reset();
     }

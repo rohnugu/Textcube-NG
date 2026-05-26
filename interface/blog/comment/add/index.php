@@ -5,7 +5,7 @@
 
 require ROOT . '/library/preprocessor.php';
 $context = Model_Context::getInstance();
-$entryId = $suri['id'];
+$entryId = (int)$suri['id'];
 $IV = array(
 	'POST' => array(
 		'key' => array('string', 32, 32),
@@ -43,9 +43,13 @@ if (!doesHaveMembership() && !doesHaveOwnership() && $userName == '') {
 		setcookie('guestName', $userName, time() + 2592000, "$blogURL/");
 	}
 	if (!empty($userHomepage) && ($userHomepage != 'http://')) {
-		if (strpos($userHomepage, 'http://') !== 0)
-			$userHomepage = "http://$userHomepage";
-		setcookie('guestHomepage', $userHomepage, time() + 2592000, "$blogURL/");
+		if (preg_match('/^\s*javascript\s*:/i', $userHomepage)) {
+			$userHomepage = '';
+		} else {
+			if (strpos($userHomepage, 'http://') !== 0)
+				$userHomepage = "http://$userHomepage";
+			setcookie('guestHomepage', $userHomepage, time() + 2592000, "$blogURL/");
+		}
 	}
 	if( Acl::getIdentity( 'openid' ) ) {
 		OpenIDConsumer::updateUserInfo( $userName, $userHomepage );

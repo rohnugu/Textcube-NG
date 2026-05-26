@@ -41,7 +41,8 @@ final class Session {
 	public static function read($id) {
 		if(is_null(self::$mc)) self::initialize();
 		//return self::$mc->get(self::$context->getProperty('service.domain')."/sessions/{$id}/{$_SERVER['REMOTE_ADDR']}");
-		return self::$mc->get(self::$context->getProperty('service.domain')."/sessions/{$id}");
+		$data = self::$mc->get(self::$context->getProperty('service.domain')."/sessions/{$id}");
+		return is_string($data) ? $data : '';
 	}
 
 	public static function write($id, $data) {
@@ -53,9 +54,9 @@ final class Session {
 
 	public static function destroy($id, $setCookie = false) {
 		//self::$mc->delete(self::$context->getProperty('service.domain')."/sessions/{$id}/{$_SERVER['REMOTE_ADDR']}");
-		self::$mc->delete(self::$context->getProperty('service.domain')."/sessions/{$id}",0);
-		self::$mc->delete(self::$context->getProperty('service.domain')."/anonymousSession/{$_SERVER['REMOTE_ADDR']}",0);
-		self::$mc->delete(self::$context->getProperty('service.domain')."/authorizedSession/{$id}",0);
+		self::$mc->delete(self::$context->getProperty('service.domain')."/sessions/{$id}");
+		self::$mc->delete(self::$context->getProperty('service.domain')."/anonymousSession/{$_SERVER['REMOTE_ADDR']}");
+		self::$mc->delete(self::$context->getProperty('service.domain')."/authorizedSession/{$id}");
 		return true;
 	}
 
@@ -122,9 +123,9 @@ final class Session {
 		for ($i = 0; $i < 3; $i++) {
 			if (($id = self::getAnonymousSession()) !== false)
 				return $id;
-			$id = dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF));
+			$id = dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF));
 			$result = self::$mc->set(self::$context->getProperty('service.domain')."/sessions/{$id}",true,0,self::$context->getProperty('service.timeout'));
-			if ($result > 0) {
+			if ($result) {
 				$result = self::$mc->set(self::$context->getProperty('service.domain')."/anonymousSession/{$_SERVER['REMOTE_ADDR']}",$id,0,120); // anonymous session timeout is 120 sec.
 				return $id;
 			}
@@ -203,12 +204,17 @@ final class Session {
 		}
 		if (self::isAuthorized(session_id())) return true;
 		for ($i = 0; $i < 3; $i++) {
-			$id = dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF)) . dechex(rand(0x10000000, 0x7FFFFFFF));
+			$id = dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF)) . dechex(random_int(0x10000000, 0x7FFFFFFF));
 			//$result = self::$mc->set(self::$context->getProperty('service.domain')."/authorizedSession/{$id}/{$_SERVER['REMOTE_ADDR']}",$userid,0,self::$context->getProperty('service.timeout'));
 			$result = self::$mc->set(self::$context->getProperty('service.domain')."/authorizedSession/{$id}",$userid,0,self::$context->getProperty('service.timeout'));
 
 			if ($result) {
-				@session_id($id);
+				// PHP 7.x: session_id() after session_start() does not change the write
+				// target. Copy current session data to the new ID directly in memcache.
+				$encodedData = session_encode();
+				if ($encodedData !== false) {
+					self::$mc->set(self::$context->getProperty('service.domain')."/sessions/{$id}", $encodedData, 0, self::$context->getProperty('service.timeout'));
+				}
 				setcookie( self::getName(), $id, 0, $session_cookie_path, self::$context->getProperty('service.session_cookie_domain'));
 				return true;
 			}

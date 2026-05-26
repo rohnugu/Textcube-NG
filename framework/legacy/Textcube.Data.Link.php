@@ -6,6 +6,7 @@
 // NOTE : it does not support to save link category yet, 
 // due to compartibility issues with other software under 'Project Tattertools.'
 
+#[AllowDynamicProperties]
 class Link {
 	function __construct() {
 		$this->reset();

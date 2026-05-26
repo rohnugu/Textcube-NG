@@ -102,7 +102,7 @@ function Auth_OpenID_mkNonce($when = null)
         // that.
         $when = time();
     }
-    $time_str = gmstrftime(Auth_OpenID_Nonce_TIME_FMT, $when);
+    $time_str = gmdate('Y-m-d\TH:i:s\Z', $when);
     return $time_str . $salt;
 }
 

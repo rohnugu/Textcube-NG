@@ -357,12 +357,12 @@ if($currentVersion != TEXTCUBE_VERSION && in_array(POD::dbms(),array('MySQL','My
 		echo '<li>', _text('id의 도용을 막기 위하여 같은 사용자 id를 사용할 수 없도록 합니다.'), ': ';
 		if(!is_null($users = POD::queryAll("SELECT userid, name FROM {$database['prefix']}Users"))) {
 			// 1 : rename duplicate names.
-			foreach($users as $user) {
-				$duplicates = POD::queryAll("SELECT userid, name FROM {$database['prefix']}Users WHERE name = '".POD::escapeString($user['name'])."' AND userid != {$user['userid']}");
+			foreach($users as $userRow) {
+				$duplicates = POD::queryAll("SELECT userid, name FROM {$database['prefix']}Users WHERE name = '".POD::escapeString($userRow['name'])."' AND userid != {$userRow['userid']}");
 				if(!empty($duplicates)) {
 					$count = 1;
 					foreach($duplicates as $dup) {
-						POD::query("UPDATE {$database['prefix']}Users SET name = '".POD::escapeString($user['name'])."-".$count."' WHERE userid = {$user['userid']}");
+						POD::query("UPDATE {$database['prefix']}Users SET name = '".POD::escapeString($userRow['name'])."-".$count."' WHERE userid = {$userRow['userid']}");
 						$count++;
 					}
 				}
@@ -850,6 +850,19 @@ if($currentVersion != TEXTCUBE_VERSION && in_array(POD::dbms(),array('MySQL','My
 		else
 			showCheckupMessage(false);
 	}
+}
+
+/* PHP port: idx_name_value on BlogSettings — required for secondaryDomain lookup.
+   Runs on every checkup regardless of version, since mig DBs may be at current
+   version already but were created before this index was added. */
+if (in_array(POD::dbms(), array('MySQL', 'MySQLi')) &&
+	!POD::queryCell("SHOW INDEX FROM {$database['prefix']}BlogSettings WHERE Key_name = 'idx_name_value'", 'Key_name')) {
+	$changed = true;
+	echo '<li>', _text('secondaryDomain 검색 성능을 위하여 블로그 설정 테이블에 인덱스를 추가합니다.'), ': ';
+	if (DBAdapter::execute("ALTER TABLE {$database['prefix']}BlogSettings ADD INDEX idx_name_value (name, value(64))"))
+		showCheckupMessage(true);
+	else
+		showCheckupMessage(false);
 }
 
 /***** Common parts. *****/

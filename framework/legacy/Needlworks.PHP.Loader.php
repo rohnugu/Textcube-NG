@@ -38,6 +38,7 @@ function requireLibrary($name) {
 }
 
 /** Autoload components */
+#[AllowDynamicProperties]
 class Autoload_Legacy {
 	private function initialize() {
 		$this->db = array(
@@ -54,7 +55,7 @@ class Autoload_Legacy {
 			);
 		$this->base = array(
 			'Base64Stream','HTTPRequest','OutputWriter','XMLRPC','XMLRPCFault',
-			'XMLCustomType','XMLTree','Pop3','CommunicationFeed');
+			'XMLCustomType','XMLTree','Pop3','Imap','CommunicationFeed');
 		$this->function = array(
 			'Image','Setting','Respond','Misc');
 		$this->openid = array(

@@ -30,9 +30,9 @@ function linePost_widget($target) {
 	<script type="text/javascript" src="{$blogURL}/plugin/linePostWidget.js"></script> 
 	<link rel="stylesheet" type="text/css" media="screen" href="{$pluginURL}/widget.css" />
 	<div id="linePost_widget">
-		<input type="radio" id="linePost_public" class="radio" name="category" value="2" checked="checked" />
+		<input type="radio" id="linePost_public" class="radio" name="category" value="public" checked="checked" />
 		<label for="linePost_public">{$public}</label>
-		<input type="radio" id="linePost_private" class="radio" name="category" value="1"  />
+		<input type="radio" id="linePost_private" class="radio" name="category" value="private"  />
 		<label for="linePost_private">{$private}</label>
 		<textarea id="linePost_widget_textarea" maxlength="150" onkeypress="if (event.keyCode == 13) { return false; }"></textarea><br />	
 		<input id="linePost_widget_button" type="button" class="input-button" value="{$write}" onclick="linePost_save();return false;"/>
@@ -52,7 +52,13 @@ function linePost_widget_Javascript($target) {
 function linePost_getData() {
 	var content = trim(document.getElementById("linePost_widget_textarea").value);
 	if(content == "") return null;
-	return ("content=" + content +
+	var radios = document.getElementsByName("category");
+	var category = "public";
+	for(var i = 0; i < radios.length; i++) {
+		if(radios[i].checked) { category = radios[i].value; break; }
+	}
+	return ("content=" + encodeURIComponent(content) +
+			"&category=" + category +
 			"&mode=ajax");
 }
 function linePost_save() {

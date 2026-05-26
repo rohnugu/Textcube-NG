@@ -446,7 +446,7 @@ function getRemoteFeed($url) {
 					if(isset($rssInfo['scheme']) && $rssInfo['scheme'] == 'http')
 						$rssURL = $attributes['href'];
 					else if(isset($rssInfo['path'])) {
-						if($rssInfo['path']{0} == '/')
+						if($rssInfo['path'][0] == '/')
 							$rssURL = "{$urlInfo['scheme']}://{$urlInfo['host']}{$rssInfo['path']}";
 						else
 							$rssURL = "{$urlInfo['scheme']}://{$urlInfo['host']}".(isset($urlInfo['path']) ? rtrim($urlInfo['path'], '/') : '').'/'.$rssInfo['path'];
@@ -468,7 +468,7 @@ function getRemoteFeed($url) {
 			$feed['language'] = $xmls->getValue('/rss/channel/dc:language');
 		else
 			$feed['language'] = 'en-US';
-		$feed['modified'] = gmmktime();
+		$feed['modified'] = time();
 	} else if ($xmls->doesExist('/feed')) {
 		$feed['blogURL'] = $xmls->getAttribute('/feed/link', 'href');
 		$feed['title'] = $xmls->getValue('/feed/title');
@@ -477,7 +477,7 @@ function getRemoteFeed($url) {
 			$feed['language'] = $xmls->getAttribute('/feed', 'xml:lang');
 		else
 			$feed['language'] = 'en-US';
-		$feed['modified'] = gmmktime();
+		$feed['modified'] = time();
 	} else if ($xmls->getAttribute('/rdf:RDF', 'xmlns')) {
 		if($xmls->getAttribute('/rdf:RDF/channel/link', 'href'))
 			$feed['blogURL'] = $xmls->getAttribute('/rdf:RDF/channel/link', 'href');
@@ -493,7 +493,7 @@ function getRemoteFeed($url) {
 			$feed['language'] = $xmls->getAttribute('/rdf:RDF', 'xml:lang');
 		else
 			$feed['language'] = 'en-US';
-		$feed['modified'] = gmmktime();
+		$feed['modified'] = time();
 	} else
 		return array(3, null, null);
 
@@ -579,7 +579,7 @@ function saveFeedItems($feedId, $xml) {
 	$deadLine = 0;
 	$feedlife = POD::queryCell("SELECT feedlife FROM {$database['prefix']}FeedSettings");
 	if($feedlife > 0)
-		$deadLine = gmmktime() - $feedlife * 86400;
+		$deadLine = time() - $feedlife * 86400;
 	if($result = POD::queryAll("SELECT id FROM {$database['prefix']}FeedItems LEFT JOIN {$database['prefix']}FeedStarred ON id = item WHERE item IS NULL AND written < $deadLine"))
 		while(list($id) = array_shift($result))
 			POD::query("DELETE FROM {$database['prefix']}FeedItems WHERE id = $id");
@@ -601,12 +601,12 @@ function saveFeedItem($feedId, $item) {
 	$tagString = POD::escapeString(UTF8::lessenAsEncoding(UTF8::correct(implode(', ', $item['tags']))));
 	$enclosureString = POD::escapeString(UTF8::lessenAsEncoding(UTF8::correct(implode('|', $item['enclosures']))));
 
-	if ($item['written'] > gmmktime() + 86400)
+	if ($item['written'] > time() + 86400)
 		return false;
 	$deadLine = 0;
 	$feedlife = POD::queryCell("SELECT feedlife FROM {$database['prefix']}FeedSettings");
 	if($feedlife > 0)
-		$deadLine = gmmktime() - $feedlife * 86400;
+		$deadLine = time() - $feedlife * 86400;
 	if ($id = POD::queryCell("SELECT id FROM {$database['prefix']}FeedItems WHERE permalink='{$item['permalink']}'") && $item['written'] != 0) {
 		$result = POD::query("UPDATE {$database['prefix']}FeedItems SET author = '{$item['author']}', title = '{$item['title']}', description = '{$item['description']}', tags = '$tagString', enclosure = '$enclosureString', written = {$item['written']} WHERE id = $id");
 		/*
@@ -617,7 +617,7 @@ function saveFeedItem($feedId, $item) {
 	} else if($id != null) {
 		return false;
 	} else {
-		if ($item['written'] == 0) $item['written'] = gmmktime();
+		if ($item['written'] == 0) $item['written'] = time();
 		if ($item['written'] > $deadLine) {
 			$id = POD::queryCell("SELECT max(id) FROM {$database['prefix']}FeedItems");
 			if (!$id) {
@@ -669,8 +669,8 @@ function updateRandomFeed() {
 	global $database;
 	$updatecycle = POD::queryCell("SELECT updatecycle FROM {$database['prefix']}FeedSettings LIMIT 1");
 	if($updatecycle != 0) {
-		if ($feed = POD::queryRow("SELECT * FROM {$database['prefix']}Feeds WHERE modified < " . (gmmktime() - ($updatecycle * 60)) . " ORDER BY RAND() LIMIT 1")) {
-			Setting::setServiceSetting('lastFeedUpdate',gmmktime(),true);
+		if ($feed = POD::queryRow("SELECT * FROM {$database['prefix']}Feeds WHERE modified < " . (time() - ($updatecycle * 60)) . " ORDER BY RAND() LIMIT 1")) {
+			Setting::setServiceSetting('lastFeedUpdate',time(),true);
 			return array(updateFeed($feed), $feed['xmlurl']);
 		}
 	}
@@ -679,14 +679,14 @@ function updateRandomFeed() {
 
 function updateFeed($feedRow) {
 	global $database;
-	if($feedRow['modified'] > gmmktime() - 300)
+	if($feedRow['modified'] > time() - 300)
 		return true;
 	list($status, $feed, $xml) = getRemoteFeed($feedRow['xmlurl']);
 	if ($status > 0) {
 		POD::execute("UPDATE {$database['prefix']}Feeds SET modified = 0 WHERE xmlurl = '{$feedRow['xmlurl']}'");
 		return $status;
 	} else {
-		POD::execute("UPDATE {$database['prefix']}Feeds SET blogURL = '{$feed['blogURL']}', title = '{$feed['title']}', description = '{$feed['description']}', language = '{$feed['language']}', modified = " . gmmktime() . " WHERE xmlurl = '{$feedRow['xmlurl']}'");
+		POD::execute("UPDATE {$database['prefix']}Feeds SET blogURL = '{$feed['blogURL']}', title = '{$feed['title']}', description = '{$feed['description']}', language = '{$feed['language']}', modified = " . time() . " WHERE xmlurl = '{$feedRow['xmlurl']}'");
 		return saveFeedItems($feedRow['id'], $xml) ? 0 : 1;
 	}
 }
@@ -729,7 +729,7 @@ function parseDate($str) {
 		list($d, $m, $y, $time) = explode(" ", $str);
 		list($h, $i, $s) = explode(":", $time);
 	} else {
-		return gmmktime();
+		return time();
 	}
 	if (!$h)
 		$h = "00";
@@ -799,7 +799,7 @@ function adjustRelativePathImage($str, $permalink) {
 		array_push($urls, $src);
 	foreach ($urls as $url) {
 		if ($url && !preg_match('/^(http:|ftp:)/i', $url)) {
-			$newSrc = ($url{0} == '/') ? $url : "/$url";
+			$newSrc = ($url[0] == '/') ? $url : "/$url";
 			$str = str_replace($url, "{$link['scheme']}://{$link['host']}$port$newSrc", $str);
 		}
 	}

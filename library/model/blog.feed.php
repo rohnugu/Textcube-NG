@@ -144,7 +144,7 @@ function getFeedItemByEntries($entries) {
 		if (!empty($row['id'])) {
 			$sql = "SELECT name, size, mime FROM {$database['prefix']}Attachments WHERE parent= {$row['id']} AND blogid = {$row['blogid']} AND enclosure = 1";
 			$attaches = POD::queryRow($sql);
-			if (count($attaches) > 0) {
+			if (!empty($attaches) && count($attaches) > 0) {
 				$item['enclosure'] = array('url' => "$serviceURL/attach/$blogid/{$attaches['name']}", 'length' => $attaches['size'], 'type' => $attaches['mime']);
 			}
 		}

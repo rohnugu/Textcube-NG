@@ -2,8 +2,17 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
+#[AllowDynamicProperties]
 class Attachment {
-	function Attachment() {
+	function __construct() {
 		$this->reset();
 	}
 
@@ -96,7 +105,7 @@ class Attachment {
 	}
 	
 	/*@static@*/
-	function doesExist($name) {
+	static function doesExist($name) {
 		global $database;
 		if (!Validator::filename($name))
 			return null;
@@ -104,7 +113,7 @@ class Attachment {
 	}
 	
 	/*@static@*/
-	function getParent($name) {
+	static function getParent($name) {
 		global $database;
 		if (!Validator::filename($name))
 			return null;
@@ -112,7 +121,7 @@ class Attachment {
 	}
 	
 	/*@static@*/
-	function adjustPermission($filename) {
+	static function adjustPermission($filename) {
 		global $service;
 		if (isset($service['umask'])) {
 			if (is_dir($filename))
@@ -123,7 +132,7 @@ class Attachment {
 	}
 	
 	/*@static@*/
-	function confirmFolder() {
+	static function confirmFolder() {
 		global $service;
 		$path = __TEXTCUBE_ATTACH_DIR__."/".getBlogId();
 		if (!file_exists($path)) {
@@ -149,7 +158,7 @@ class Attachment {
 				case '.sh':
 				case '.bat':
 					$ext = '.xxx';
-					$this->name = rand(1000000000, 9999999999) . $ext;
+					$this->name = random_int(1000000000, 9999999999) . $ext;
 					break;
 				default:
 					$ext = Path::getExtension2($this->name);
@@ -160,7 +169,7 @@ class Attachment {
 		}
 		$this->confirmFolder();
 		while (Attachment::doesExist($this->name))
-			$this->name = rand(1000000000, 9999999999) . $ext;
+			$this->name = random_int(1000000000, 9999999999) . $ext;
 		return true;
 	}
 	

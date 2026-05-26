@@ -23,14 +23,23 @@ $conditions['linesforpage'] = $_POST['lines'];
 
 $d = _t('삭제');
 $conditions['template'] = <<<EOS
-			<dl id="line_[##_id_##]" class="line">
+			<dl id="line_[##_id_##]" class="line [##_category_##]" data-category="[##_category_##]">
 				<dt class="date">[##_date_##]</dt>
 				<dd class="content">[##_content_##]</dd>
 				<dd class="permalink"><a href="[##_permalink_##]" class="permalink">at [##_root_##]</a></dd>
+				<dd class="toggle" onclick="toggleLineCategory('[##_id_##]', this);return false;"><span class="text">[##_category_toggle_label_##]</span></dd>
 				<dd class="delete input-button" onclick="deleteLine('[##_id_##]');return false;"><span class="text">{$d}</span></dd>
 			</dl>
 EOS;
-$conditions['dress'] = array('id'=>'id','date'=>'created','content'=>'content','permalink'=>'permalink','root'=>'root');
+$conditions['dress'] = array(
+	'id'                    => 'id',
+	'date'                  => 'created',
+	'content'               => 'content',
+	'permalink'             => 'permalink',
+	'root'                  => 'root',
+	'category'              => 'category',
+	'category_toggle_label' => 'category_toggle_label'
+);
 $line = Model_Line::getInstance();
 $contentView = $line->getFormattedList($conditions);
 if(empty($contentView)) {

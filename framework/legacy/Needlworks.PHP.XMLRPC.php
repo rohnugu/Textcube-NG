@@ -66,12 +66,13 @@
 		return $ret;
 	}
 		
+#[AllowDynamicProperties]
 class XMLRPC {
 	var $url, $async = false, $methodName, $params, $result, $fault;
 	
 	var $useOldXmlRPC = false; // for 2003-before-version
 
-	function XMLRPC() {
+	function __construct() {
 		$this->_registry = array();
 	}
 	
@@ -126,10 +127,16 @@ class XMLRPC {
 	
 	function receive($xml = null) {
 		if (empty($xml)) {
-			if (empty($_SERVER['CONTENT_TYPE']) || empty($GLOBALS['HTTP_RAW_POST_DATA']) || ($_SERVER['CONTENT_TYPE'] != 'text/xml'))
+			// $GLOBALS['HTTP_RAW_POST_DATA'] 는 PHP 7.0에서 제거됨 → file_get_contents('php://input') 로 대체.
+			// Content-Type 비교 시 '; charset=utf-8' 등 파라미터가 붙는 경우를 허용하도록 prefix 비교로 변경.
+			$rawPost = file_get_contents('php://input');
+			if (empty($_SERVER['CONTENT_TYPE']) || empty($rawPost))
+				return false;
+			$contentType = strtolower(trim(explode(';', $_SERVER['CONTENT_TYPE'])[0]));
+			if ($contentType !== 'text/xml')
 				return false;
 			$xmls = new XMLStruct();
-			if ($xmls->open($GLOBALS['HTTP_RAW_POST_DATA']) == false) {
+			if ($xmls->open($rawPost) == false) {
 				return false;
 			}
 		} else {
@@ -226,7 +233,7 @@ class XMLRPC {
 					$this->_encodeValue($value[$i]);
 				echo '</data></array>';
 			}
-		} else if ((strlen($value) == 17) && ($value{8} == 'T') && ($value{11} == ':') && ($value{14} == ':')) {
+		} else if ((strlen($value) == 17) && ($value[8] == 'T') && ($value[11] == ':') && ($value[14] == ':')) {
 			echo '<dateTime.iso8601>';
 			echo $value;
 			echo '</dateTime.iso8601>';
@@ -302,7 +309,7 @@ class XMLRPC {
         //char[] buf = new char[32];
         for ($i = 0; $i < $l; $i++)
         {
-            $c = $text{$i};
+            $c = $text[$i];
             switch ($c)
             {
             case '\t':
@@ -333,31 +340,31 @@ class XMLRPC {
                 // outside of the valid range for ASCII, too.
 
                 // Replace the code point with a character reference.
-				$high = ord($text{$i});
+				$high = ord($text[$i]);
 				$corrected = '';
 				if ($high < 0x20) { // Special Characters.
 					$corrected = '?';
 				} else if ($high < 0x80) { // 1byte.
-					$corrected = $text{$i};
+					$corrected = $text[$i];
 				} else if ($high <= 0xC1) {
 					$corrected = '?';
 				} else if ($high < 0xE0) { // 2byte.
-					if (($i + 1 >= $l) || (($text{$i + 1} & "\xC0") != "\x80"))
+					if (($i + 1 >= $l) || (($text[$i + 1] & "\xC0") != "\x80"))
 						$corrected = '?';
 					else
-						$corrected = '&#' . ((ord($text{$i}) & 0x1f) * 0x40 + (ord($text{$i + 1}) & 0x3f)) . ';'; 
+						$corrected = '&#' . ((ord($text[$i]) & 0x1f) * 0x40 + (ord($text[$i + 1]) & 0x3f)) . ';'; 
 					$i += 1;
 				} else if ($high < 0xF0) { // 3byte.
-					if (($i + 2 >= $l) || (($text{$i + 1} & "\xC0") != "\x80") || (($text{$i + 2} & "\xC0") != "\x80"))
+					if (($i + 2 >= $l) || (($text[$i + 1] & "\xC0") != "\x80") || (($text[$i + 2] & "\xC0") != "\x80"))
 						$corrected = '?';
 					else
-						$corrected = '&#' . (((ord($text{$i}) & 0x0f) * 0x40 + (ord($text{$i + 1})& 0x3f))  * 0x40 + (ord($text{$i + 2}) & 0x3f)) . ';'; 
+						$corrected = '&#' . (((ord($text[$i]) & 0x0f) * 0x40 + (ord($text[$i + 1])& 0x3f))  * 0x40 + (ord($text[$i + 2]) & 0x3f)) . ';'; 
 					$i += 2;
 				} else if ($high < 0xF5) { // 4byte.
-					if (($i + 3 >= $l) || (($text{$i + 1} & "\xC0") != "\x80") || (($text{$i + 2} & "\xC0") != "\x80") || (($text{$i + 3} & "\xC0") != "\x80"))
+					if (($i + 3 >= $l) || (($text[$i + 1] & "\xC0") != "\x80") || (($text[$i + 2] & "\xC0") != "\x80") || (($text[$i + 3] & "\xC0") != "\x80"))
 						$corrected = '?';
 					else
-						$corrected = '&#' . ((((ord($text{$i}) & 0x07) * 0x40 + (ord($text{$i + 1}) & 0x3f)) * 0x40 + (ord($text{$i + 2}) & 0x3f ) ) * 0x40 + (ord($text{$i + 3}) & 0x3f)) . ';'; 
+						$corrected = '&#' . ((((ord($text[$i]) & 0x07) * 0x40 + (ord($text[$i + 1]) & 0x3f)) * 0x40 + (ord($text[$i + 2]) & 0x3f ) ) * 0x40 + (ord($text[$i + 3]) & 0x3f)) . ';'; 
 					$i += 3;
 				} else { // F5~FF is invalid by RFC3629.
 					$corrected = '?';
@@ -374,7 +381,7 @@ class XMLRPC {
 class XMLRPCFault {
 	var $code, $string;
 
-	function XMLRPCFault($code = 0, $string = 'Error') {
+	function __construct($code = 0, $string = 'Error') {
 		$this->code = $code;
 		$this->string = $string;
 	}
@@ -383,7 +390,7 @@ class XMLRPCFault {
 class XMLCustomType {
 	var $value, $name;
 	
-	function XMLCustomType($varString, $varName) {
+	function __construct($varString, $varName) {
 		$this->name = $varName;
 		$this->value = $varString;
 	}

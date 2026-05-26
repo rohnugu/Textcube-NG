@@ -6,6 +6,7 @@
 /**
  * This class implements message queue.
  */
+#[AllowDynamicProperties]
 class Message extends Singleton {
 	private static $__storageTemplate = array(
 			'id'=>0,

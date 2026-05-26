@@ -36,8 +36,10 @@ function loginOpenIDforAdding($claimedOpenID)
 function exitWithError($msg)
 {
 	$context = Model_Context::getInstance();
+	$safeMsg      = json_encode($msg);
+	$safeRedirect = json_encode($context->getProperty('uri.blog') . '/owner/setting/account');
 	echo "<html><head><script type=\"text/javascript\">//<![CDATA[".CRLF
-		."alert('$msg'); document.location.href='" . $context->getProperty('uri.blog') . "/owner/setting/account'; //]]></script></head></html>";
+		."alert($safeMsg); document.location.href=$safeRedirect; //]]></script></head></html>";
 	exit;
 }
 
@@ -79,8 +81,10 @@ function addOpenID()
 		}
 	}
 
+	$safeMsg      = json_encode(_t('연결하였습니다.') . ' : ' . $currentOpenID);
+	$safeRedirect = json_encode($context->getProperty('uri.blog') . '/owner/setting/account');
 	echo "<html><head><script type=\"text/javascript\">//<![CDATA[".CRLF
-		."alert('" . _t('연결하였습니다.') . " : " . $currentOpenID . "'); document.location.href='" . $context->getProperty('uri.blog') . "/owner/setting/account'; //]]></script></head></html>";
+		."alert($safeMsg); document.location.href=$safeRedirect; //]]></script></head></html>";
 
 }
 
@@ -96,8 +100,10 @@ function deleteOpenID($openidForDel)
 		}
 	}
 
+	$safeMsg      = json_encode(_t('삭제되었습니다.'));
+	$safeRedirect = json_encode($context->getProperty('uri.blog') . '/owner/setting/account');
 	echo "<html><head><script type=\"text/javascript\">//<![CDATA[".CRLF
-		."alert('" . _t('삭제되었습니다.') . "'); document.location.href='" . $context->getProperty('uri.blog') . "/owner/setting/account'; //]]></script></head></html>";
+		."alert($safeMsg); document.location.href=$safeRedirect; //]]></script></head></html>";
 
 }
 

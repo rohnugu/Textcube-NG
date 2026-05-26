@@ -440,17 +440,17 @@ function getDefaultCenterPanel($mapping) {
 		list($commentNotifies,$paging) = getCommentsNotifiedWithPagingForOwner($blogid,0,null,null,null,1,10);
 		$trackbacks = getRecentTrackbacks($blogid,10);
 		$recents = array();	// title, date, link, category
-		foreach($comments as $comment) {
+		foreach($comments as $commentRow) {
 			array_push($recents, array(
-			'title'   =>$comment['comment'],
-			'date'    =>$comment['written'],
-			'link'    => $ctx->getProperty('uri.blog')."/".$comment['entry']."#comment".$comment['id'],
+			'title'   =>$commentRow['comment'],
+			'date'    =>$commentRow['written'],
+			'link'    => $ctx->getProperty('uri.blog')."/".$commentRow['entry']."#comment".$commentRow['id'],
 			'category'=>'comment'));
 		}
-		foreach($commentNotifies as $comment) {
+		foreach($commentNotifies as $commentRow) {
 			array_push($recents, array(
-			'title'   =>$comment['comment'],
-			'date'    =>$comment['written'],
+			'title'   =>$commentRow['comment'],
+			'date'    =>$commentRow['written'],
 			'link'    => $ctx->getProperty('uri.blog')."/owner/communication/notify",
 			'category'=>'commentNotify'));
 		}
@@ -461,11 +461,11 @@ function getDefaultCenterPanel($mapping) {
 			'link'    => $ctx->getProperty('uri.blog')."/guestbook/".$guestbook['id']."#guestbook".$guestbook['id'],
 			'category'=>'guestbook'));
 		}
-		foreach($trackbacks as $trackback) {
+		foreach($trackbacks as $trackbackRow) {
 			array_push($recents, array(
-			'title'   =>$trackback['subject'],
-			'date'    =>$trackback['written'],
-			'link'    => $ctx->getProperty('uri.blog')."/".$trackback['entry']."#trackback".$trackback['id'],
+			'title'   =>$trackbackRow['subject'],
+			'date'    =>$trackbackRow['written'],
+			'link'    => $ctx->getProperty('uri.blog')."/".$trackbackRow['entry']."#trackback".$trackbackRow['id'],
 			'category'=>'trackback'));
 		}
 		$sort_array = array();

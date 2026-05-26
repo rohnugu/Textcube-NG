@@ -45,6 +45,7 @@ define('Auth_Yadis_HEADER_NAME', 'X-XRDS-Location');
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_Yadis_DiscoveryResult {
 
     // The URI that was passed to the fetcher
@@ -68,7 +69,7 @@ class Auth_Yadis_DiscoveryResult {
     // Did the discovery fail miserably?
     var $failed = false;
 
-    function Auth_Yadis_DiscoveryResult($request_uri)
+    function __construct($request_uri)
     {
         // Initialize the state of the object
         // sets all attributes to None except the request_uri
@@ -239,6 +240,7 @@ function Auth_Yadis_getServiceEndpoints($input_url, $xrds_parse_func,
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_Yadis_Yadis {
 
     /**

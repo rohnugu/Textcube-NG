@@ -3,6 +3,7 @@
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 
+#[AllowDynamicProperties]
 final class Model_AlternateLogins extends DBModel {
 	public function __construct() {
 		$this->context = Model_Context::getInstance();
@@ -13,7 +14,7 @@ final class Model_AlternateLogins extends DBModel {
 		return self::_getInstance(__CLASS__);
 	}
 		
-	public function reset($param = null) {
+	public function reset($table = null, $param = null) {
 		$this->userid = null;
 		$this->provider = '';
 		$this->remoteid = '';

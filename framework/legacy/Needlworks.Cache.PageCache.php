@@ -352,7 +352,7 @@ class globalCacheStorage extends pageCache {
 
 // CacheControl have functions for flushing caches.
 class CacheControl {
-	function flushAll($blogid = null) {
+	public static function flushAll($blogid = null) {
 		if(empty($blogid)) $blogid = getBlogId();
 		
 		$dir = __TEXTCUBE_CACHE_DIR__.'/pageCache/'.$blogid;
@@ -369,7 +369,7 @@ class CacheControl {
 		$query->delete();
 		return true;
 	}
-	function flushSkin($blogid = null) {
+	public static function flushSkin($blogid = null) {
 		global $gCacheStorage;
 		if(empty($blogid)) $blogid = getBlogId();
 		$pool = DBModel::getInstance();
@@ -380,7 +380,7 @@ class CacheControl {
 		if(!empty($candidates)) CacheControl::purgeItems($candidates);
 		$gCacheStorage->purge();
 	}
-	function flushCategory($categoryId = null) {
+	public static function flushCategory($categoryId = null) {
 		global $database;
 
 		if(empty($categoryId)) $categoryId = '';
@@ -397,7 +397,7 @@ class CacheControl {
 		return true;
 	}
 
-	function flushAuthor($authorId = null) {
+	public static function flushAuthor($authorId = null) {
 		global $database;
 		if(empty($authorId)) $authorId = '';
 		else $authorId = POD::escapeString($authorId).'-';
@@ -410,7 +410,7 @@ class CacheControl {
 		return true;
 	}
 
-	function flushTag($tagId = null) {
+	public static function flushTag($tagId = null) {
 		global $database;
 
 		if(empty($tagId)) $tagId = '';
@@ -431,7 +431,7 @@ class CacheControl {
 		return true;
 	}
 
-	function flushKeyword($tagId = null) {
+	public static function flushKeyword($tagId = null) {
 		global $database;
 
 		if(empty($tagId)) $tagId = '';
@@ -444,7 +444,7 @@ class CacheControl {
 		return true;
 	}
 	
-	function flushSearchKeywordRSS($search = null) {
+	public static function flushSearchKeywordRSS($search = null) {
 		global $database;
 
 		if(empty($search)) $search = '';
@@ -458,7 +458,7 @@ class CacheControl {
 		return true;
 	}
 	
-	function flushEntry($entryId = null) {
+	public static function flushEntry($entryId = null) {
 		global $database;
 
 		if(empty($entryId)) $entryId = '';
@@ -484,7 +484,7 @@ class CacheControl {
 		}
 		return true;
 	}
-	function flushRSS() {
+	public static function flushRSS() {
 		if (file_exists(__TEXTCUBE_CACHE_DIR__."/rss/".getBlogId().".xml"))
 			@unlink(__TEXTCUBE_CACHE_DIR__."/rss/".getBlogId().".xml");
 		CacheControl::flushCommentRSS();
@@ -493,7 +493,7 @@ class CacheControl {
 		CacheControl::flushSearchKeywordRSS();
 	}
 
-	function flushCommentRSS($entryId = null) {
+	public static function flushCommentRSS($entryId = null) {
 		global $database;
 		if(empty($entryId)) $entryId = '';
 		$cache = pageCache::getInstance();
@@ -512,7 +512,7 @@ class CacheControl {
 		return true;
 	}
 	
-	function flushTrackbackRSS($entryId = null) {
+	public static function flushTrackbackRSS($entryId = null) {
 		if(empty($entryId)) $entryId = '';
 		$cache = pageCache::getInstance();
 		$cache->name = 'trackbackRSS-'.$entryId;
@@ -530,7 +530,7 @@ class CacheControl {
 		return true;
 	}
 		
-	function flushResponseRSS($entryId = null) {
+	public static function flushResponseRSS($entryId = null) {
 		if(empty($entryId)) $entryId = '';
 		$cache = pageCache::getInstance();
 		$cache->name = 'responseRSS-'.$entryId;
@@ -547,7 +547,7 @@ class CacheControl {
 		return true;
 	}
 
-	function flushCommentNotifyRSS() {
+	public static function flushCommentNotifyRSS() {
 		global $database;
 		$cache = pageCache::getInstance();
 		$cache->name = 'commentNotifiedRSS';
@@ -558,7 +558,7 @@ class CacheControl {
 		return true;
 	}
 
-	function flushItemsByPlugin($pluginName) {
+	public static function flushItemsByPlugin($pluginName) {
 		$xmls = new XMLStruct();
 		$manifest = @file_get_contents(ROOT . "/plugins/$pluginName/index.xml");
 		if ($manifest && $xmls->open($manifest)) {
@@ -590,7 +590,7 @@ class CacheControl {
 			
 		}
 	}
-	function flushDBCache($prefix = null) {
+	public static function flushDBCache($prefix = null) {
 		$pool = queryCache::getInstance();
 		$pool->reset('PageCacheLog',$prefix);
 		return $pool->flush();
@@ -606,7 +606,7 @@ class CacheControl {
 			WHERE blogid = ".getBlogId()."
 			AND name like '%".(!empty($prefix) ? $prefix.'-' : '')."queryCache%'");*/
 	}
-	function purgeItems($items) {
+	public static function purgeItems($items) {
 		if(!empty($items)) {
 			$cache = pageCache::getInstance();
 			foreach($items as $item){

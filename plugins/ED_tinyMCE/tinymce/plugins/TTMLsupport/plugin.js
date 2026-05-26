@@ -1577,13 +1577,12 @@ tinymce.create('tinymce.Textcube.TTMLsupport', {
             case 'Image1L':
             case 'Image1C':
             case 'Image1R':
-                if (t._isMediaFile(objects[0][0])) {
+                // audio files fall through to TTML tag path (rendered as <audio> by FM_TTML_getAttachmentBinder)
+                if (t._isMediaFile(objects[0][0]) && !(/\.(mp3|ogg|wav|flac|m4a|aac|wma|mid|midi)$/i.test(objects[0][0]))) {
                     getObject(t.id + "propertyInsertObject_type").value = "url";
                     getObject(t.id + "propertyInsertObject_url").value = blogURL + "/attachment/" + objects[0][0];
                     t.command("InsertObject");
                     return true;
-                } else {
-
                 }
             // *fall through*
             case 'Image2C':

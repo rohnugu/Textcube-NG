@@ -25,19 +25,18 @@ list($currentTextcubeVersion) = explode(' ', TEXTCUBE_VERSION, 2);
 
 if (getBlogId()) {
 	$gCacheStorage = globalCacheStorage::getInstance();
-	if($gCacheStorage->getContent('activePlugins')) $activePlugins = $gCacheStorage->getContent('activePlugins');
-	else {
-		$pool = DBModel::getInstance();
-		$pool->reset('Plugins');
-		$pool->setQualifier('blogid','eq',getBlogId());
-		$activePlugins = $pool->getColumn('name');
-		$gCacheStorage->setContent('activePlugins',$activePlugins);
-	}
+	// activePlugins는 항상 DB에서 직접 로드하여 캐시 불일치 방지
+	$pool = DBModel::getInstance();
+	$pool->reset('Plugins');
+	$pool->setQualifier('blogid','eq',getBlogId());
+	$activePlugins = $pool->getColumn('name');
+	$gCacheStorage->setContent('activePlugins',$activePlugins);
+
 	$pageCache = pageCache::getInstance();
 	$pageCache->reset('PluginSettings');
 	$pageCache->load();
-	
-	$pluginSettings = $pageCache->contents;	
+
+	$pluginSettings = $pageCache->contents;
 	$context = Model_Context::getInstance();
 
 	$storageList = array('activePlugins','eventMappings','tagMappings',
@@ -48,13 +47,40 @@ if (getBlogId()) {
 	$p = array();
 	if(!empty($pluginSettings)) {
 		$p = unserialize($pluginSettings);
+	}
+	// 페이지 캐시의 activePlugins와 DB 값이 다르면 캐시 무효화 후 재빌드
+	if (is_array($p) && !empty($p) && isset($p['activePlugins'])) {
+		$cachedActive = (array)$p['activePlugins'];
+		$dbActive = (array)$activePlugins;
+		sort($cachedActive);
+		sort($dbActive);
+		if ($cachedActive !== $dbActive) {
+			$pageCache->purge();
+			$p = array();
+		} else {
+			// index.xml 수정 시에도 캐시 무효화
+			// _xmlMtime 미존재(구 캐시) 시 0으로 간주 → 항상 재빌드
+			$curMaxMtime = 0;
+			foreach ($activePlugins as $_plugin) {
+				$_xmlFile = ROOT . "/plugins/$_plugin/index.xml";
+				if (file_exists($_xmlFile)) $curMaxMtime = max($curMaxMtime, (int)filemtime($_xmlFile));
+			}
+			if ($curMaxMtime > (int)($p['_xmlMtime'] ?? 0)) {
+				$pageCache->purge();
+				$p = array();
+			}
+			unset($_plugin, $_xmlFile, $curMaxMtime);
+		}
+	}
+	if(is_array($p) && !empty($p)) {
 		if ($context->getProperty('blog.displaymode','desktop')=='mobile') {
 			array_pop($storageList);
 		}
 		foreach ($storageList as $s) {
-			${$s} = $p[$s];	
+			${$s} = $p[$s];
 		}
 	} else {
+		$p = array();
 		$xmls = new XMLStruct();
 		$editorCount     = 0;
 		$formatterCount  = 0;
@@ -373,9 +399,16 @@ if (getBlogId()) {
 			}
 		}
 		foreach ($storageList as $s) {
-			$p[$s] = ${$s};	
+			$p[$s] = ${$s};
 		}
-		$pageCache->contents = serialize($p);	
+		$maxXmlMtime = 0;
+		foreach ($activePlugins as $_plugin) {
+			$_xmlFile = ROOT . "/plugins/$_plugin/index.xml";
+			if (file_exists($_xmlFile)) $maxXmlMtime = max($maxXmlMtime, (int)filemtime($_xmlFile));
+		}
+		$p['_xmlMtime'] = $maxXmlMtime;
+		unset($maxXmlMtime, $_plugin, $_xmlFile);
+		$pageCache->contents = serialize($p);
 		$pageCache->update();
 	}
 	if(!array_key_exists('ttml',$formatterMappings)) { // Any formatter is used, add the ttml formatter.

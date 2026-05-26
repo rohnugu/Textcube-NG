@@ -624,11 +624,11 @@ h3
 /* upload ---------------------------------------------------------------------------------------*/
 #upload-section
 {
-	background-color                 : #FFF;
-	margin                           : 10px auto 10px auto;
-	position                         : relative;
-	width                            : 780px;
-	border: 1px solid #F2F2F2;
+	display                          : none;
+	top                              : auto !important;
+	bottom                           : 30px !important;
+	margin-top                       : 0 !important;
+	z-index                          : 400 !important;
 }
 
 #upload-section h3
@@ -642,9 +642,15 @@ h3
 	display                          : none;
 }
 
+#upload-container
+{
+	position                         : relative;
+}
+
 #attachment-container
 {
 	position                         : relative;
+	min-height                       : 228px;
 }
 
 #previewSelected
@@ -654,7 +660,7 @@ h3
 	left                             : 12px;
 	position                         : absolute;
 	top                              : 10px;
-	height: 118px !Important;
+	height: 138px !Important;
 	width: 150px !important;
 }
 
@@ -668,28 +674,26 @@ h3
 #attachManagerSelectNest
 {
 	margin-left                      : 174px;
-	width                            : 415px;
-/*	width                            : 315px;*/
+	margin-right                     : 115px;
+	width                            : auto;
 }
 
 #TCfilelist
 {
-	height                           : 120px;
+	height                           : 140px;
 	margin-top                       : 10px;
-	width                            : 500px !important;
-/*	width                            : 293px !important;*/
+	width                            : 100% !important;
 }
 
 #fileUploadNest
 {
-	height                           : 3em;
-	padding-left                     : 170px !important;
-	overflow                         : hidden;
-	position                         : relative;
-	text-align                       : left;
-	width                            : 390px;
-	margin-top                       : -35px;
-	z-index                          : 0;
+	left                             : 174px;
+	margin                           : 0;
+	padding                          : 5px 0 0 0;
+	position                         : absolute;
+	right                            : 115px;
+	top                              : 155px;
+	width                            : auto;
 }
 
 #fileUploadNest iframe
@@ -700,9 +704,27 @@ h3
 
 #uploaderNest
 {
-	margin-left                      : 165px;
-	position: relative;
-	z-index: 10;
+	position                         : absolute;
+	top                              : 156px;
+	left                             : 12px;
+	width                            : 154px;
+	margin                           : 0;
+	z-index                          : 10;
+}
+
+#deleteNest
+{
+	position                         : absolute;
+	top                              : 192px;
+	left                             : 12px;
+	width                            : 154px;
+}
+
+#uploadProgressNest
+{
+	font-size                        : 0.9em;
+	color                            : #555;
+	padding-bottom                   : 3px;
 }
 
 #upload-section .input-button
@@ -724,9 +746,7 @@ h3
 #fileSize
 {
 	margin-top                       : 5px;
-	position                         : absolute;
-	right                            : 0;
-	top                              : 0;
+	text-align                       : right;
 }
 
 /* iframe */
@@ -744,9 +764,11 @@ h3
 
 #insert-container
 {
-	position                         : absolute;
-	margin-top                       : -160px;
-	left                             : 680px;
+	position                         : absolute !important;
+	top                              : 10px;
+	right                            : 10px !important;
+	left                             : auto !important;
+	margin-top                       : 0 !important;
 	width                            : 100px;
 }
 

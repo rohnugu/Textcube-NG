@@ -86,15 +86,15 @@ function MT_Cover_getRecentEntries($parameters){
 		$html .= '<div class="coverpost">'.CRLF;
 		if($imageName = MT_Cover_getAttachmentExtract($entry['content'])){
 			if(($tempImageSrc = MT_Cover_getImageResizer($blogid, $imageName, $data['screenshotSize'])) && ($data['screenshot'] == 1)){
-				$html .= '<div class="img_preview"><a href="'.$permalink.'"><img src="'.$tempImageSrc.'" alt="" /></a></div>'.CRLF;
+				$html .= '<div class="img_preview"><a href="'.htmlspecialchars($permalink, ENT_QUOTES, 'UTF-8').'"><img src="'.htmlspecialchars($tempImageSrc, ENT_QUOTES, 'UTF-8').'" alt="" /></a></div>'.CRLF;
 			}
 		}
 		$html .= '	<div class="content_box">';
-		$html .= '		<h2><a href="'.$permalink.'">'.htmlspecialchars($entry['title']).'</a></h2>'.CRLF;
+		$html .= '		<h2><a href="'.htmlspecialchars($permalink, ENT_QUOTES, 'UTF-8').'">'.htmlspecialchars($entry['title']).'</a></h2>'.CRLF;
 		$html .= '		<div class="post_info">'.CRLF;
 		$html .= '			<span class="category"><a href="'.htmlspecialchars($entry['link']).'">'.htmlspecialchars($entry['label']).'</a></span>'.CRLF;
 		$html .= '			<span class="date">'.Timestamp::format5($entry['published']).'</span>'.CRLF;
-		$html .= '			<span class="author"><span class="preposition">by </span>'.User::getName($entry['userid']).'</span>'.CRLF;
+		$html .= '			<span class="author"><span class="preposition">by </span>'.htmlspecialchars(User::getName($entry['userid']), ENT_QUOTES, 'UTF-8').'</span>'.CRLF;
 		$html .= '		</div>'.CRLF;
 		$html .= '		<div class="post_content">'.htmlspecialchars(UTF8::lessenAsEm(removeAllTags(stripHTML($entry['content'])), $data['contentLength'])).'</div>'.CRLF;
 		$html .=		$tagLabelView;
@@ -113,10 +113,10 @@ function MT_Cover_getRecentEntries($parameters){
 		$html .= '<script type="text/javascript">'.CRLF;
 		$html .= '//<![CDATA['.CRLF;
 		if ($paging['page'] > 1) {
-			$html .= 'var prevURL = "'.$paging['url'].'?page='.($paging['page'] - 1).'"'.CRLF;
+			$html .= 'var prevURL = '.json_encode($paging['url'].'?page='.($paging['page'] - 1)).';'.CRLF;
 		}
 		if ($paging['page'] < $paging['total']) {
-			$html .= 'var nextURL = "'.$paging['url'].'?page='.($paging['page'] + 1).'"'.CRLF;
+			$html .= 'var nextURL = '.json_encode($paging['url'].'?page='.($paging['page'] + 1)).';'.CRLF;
 		}
 		$html .= '//]]>'.CRLF;
 		$html .= '</script>';

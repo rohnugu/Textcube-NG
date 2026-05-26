@@ -91,8 +91,8 @@ require ROOT . '/interface/common/owner/header.php';
 							var URLinfo = new Array();
 <?php
 $i = 0;
-foreach($trackbacks as $trackback) {
-	echo "							URLinfo[".$i++."] = \"".escapeJSInAttribute($trackback['url'])."\";".CRLF;
+foreach($trackbacks as $trackbackRow) {
+	echo "							URLinfo[".$i++."] = \"".escapeJSInAttribute($trackbackRow['url'])."\";".CRLF;
 }
 
 if($tabsClass['received'] == true) {
@@ -371,22 +371,22 @@ if (sizeof($trackbacks) == 0) {
 } else {
     $siteNumber = array();
     for ($i = 0; $i < sizeof($trackbacks); $i++) {
-        $trackback = $trackbacks[$i];
-        $isFilterURL = Filter::isFiltered('url', $trackback['url']);
-        $filteredURL = getURLForFilter($trackback['url']);
+        $trackbackRow = $trackbacks[$i];
+        $isFilterURL = Filter::isFiltered('url', $trackbackRow['url']);
+        $filteredURL = getURLForFilter($trackbackRow['url']);
 
         $filter = new Filter();
-        if (isset($trackback['ip']) && Filter::isFiltered('ip', $trackback['ip'])) {
+        if (isset($trackbackRow['ip']) && Filter::isFiltered('ip', $trackbackRow['ip'])) {
             $isIpFiltered = true;
         } else {
             $isIpFiltered = false;
         }
-        if (isset($trackback['site'])) {
-            if (!isset($siteNumber[$trackback['site']])) {
-                $siteNumber[$trackback['site']] = $i;
+        if (isset($trackbackRow['site'])) {
+            if (!isset($siteNumber[$trackbackRow['site']])) {
+                $siteNumber[$trackbackRow['site']] = $i;
                 $currentSite = $i;
             } else {
-                $currentSite = $siteNumber[$trackback['site']];
+                $currentSite = $siteNumber[$trackbackRow['site']];
             }
         } else {
             $currentSite = $i;
@@ -397,12 +397,12 @@ if (sizeof($trackbacks) == 0) {
                                         <tr class="<?php echo $className; ?> inactive-class" onmouseover="rolloverClass(this, 'over'); return false;"
                                             onmouseout="rolloverClass(this, 'out'); return false;">
                                             <td class="selection">
-                                                <input id="trackbackCheckId<?php echo $trackback['id']; ?>" type="checkbox" class="checkbox"
-                                                       name="entry" value="<?php echo $trackback['id']; ?>"
-                                                       ip="<?php echo urlencode($trackback['ip']); ?>"/>
-                                                <label for="trackbackCheckId<?php echo $trackback['id']; ?>"></label>
+                                                <input id="trackbackCheckId<?php echo $trackbackRow['id']; ?>" type="checkbox" class="checkbox"
+                                                       name="entry" value="<?php echo $trackbackRow['id']; ?>"
+                                                       ip="<?php echo urlencode($trackbackRow['ip']); ?>"/>
+                                                <label for="trackbackCheckId<?php echo $trackbackRow['id']; ?>"></label>
                                             </td>
-                                            <td class="date"><?php echo Timestamp::formatDate($trackback['written']); ?></td>
+                                            <td class="date"><?php echo Timestamp::formatDate($trackbackRow['written']); ?></td>
                                             <td class="site">
 <?php
         if (isset($tabsClass['received'])) {
@@ -424,21 +424,21 @@ if (sizeof($trackbacks) == 0) {
 <?php
             }
 ?>
-                    <a href="?site=<?php echo urlencode(escapeJSInAttribute($trackback['site'])); ?>"
-                       title="<?php echo _t('이 사이트에서 건 글 목록을 보여줍니다.'); ?>"><?php echo htmlspecialchars($trackback['site']); ?></a>
+                    <a href="?site=<?php echo urlencode(escapeJSInAttribute($trackbackRow['site'])); ?>"
+                       title="<?php echo _t('이 사이트에서 건 글 목록을 보여줍니다.'); ?>"><?php echo htmlspecialchars($trackbackRow['site']); ?></a>
 <?php
         } else {
 ?>
-                    <a href="<?php echo htmlspecialchars($trackback['url']); ?>"><?php echo link_cut(htmlspecialchars($trackback['url']), 30); ?></a>
+                    <a href="<?php echo htmlspecialchars($trackbackRow['url']); ?>"><?php echo link_cut(htmlspecialchars($trackbackRow['url']), 30); ?></a>
 <?php
         }
 ?>
                                             </td>
                                             <td class="category">
 <?php
-        if (!empty($trackback['categoryName'])) {
+        if (!empty($trackbackRow['categoryName'])) {
 ?>
-                                                    <span class="categorized"><?php echo htmlspecialchars($trackback['categoryName']); ?></span>
+                                                    <span class="categorized"><?php echo htmlspecialchars($trackbackRow['categoryName']); ?></span>
 <?php
         } else {
 ?>
@@ -448,13 +448,13 @@ if (sizeof($trackbacks) == 0) {
 ?>
                                             </td>
                                             <td class="title">
-                                                <a href="<?php echo $trackback['url']; ?>" onclick="window.open(this.href); return false;"
-                                                   title="<?php echo _t('글을 건 글을 보여줍니다.'); ?>"><?php echo htmlspecialchars($trackback['subject']); ?></a>
+                                                <a href="<?php echo $trackbackRow['url']; ?>" onclick="window.open(this.href); return false;"
+                                                   title="<?php echo _t('글을 건 글을 보여줍니다.'); ?>"><?php echo htmlspecialchars($trackbackRow['subject']); ?></a>
 <?php
         if (isset($tabsClass['received'])) {
 ?>
                                                     <span
-                                                        class="excerpt"><?php echo UTF8::lessenAsEm(htmlspecialchars($trackback['excerpt']), 40); ?></span>
+                                                        class="excerpt"><?php echo UTF8::lessenAsEm(htmlspecialchars($trackbackRow['excerpt']), 40); ?></span>
 <?php
         }
 ?>
@@ -466,31 +466,31 @@ if (sizeof($trackbacks) == 0) {
 <?php
             if ($isIpFiltered) {
 ?>
-                                                        <a id="ipFilter<?php echo urlencode($trackback['ip']); ?>-<?php echo $i; ?>"
+                                                        <a id="ipFilter<?php echo urlencode($trackbackRow['ip']); ?>-<?php echo $i; ?>"
                                                            class="block-icon bullet"
-                                                           href="<?php echo $blogURL; ?>/owner/communication/filter/change/?value=<?php echo urlencode($trackback['ip']); ?>&amp;mode=ip&amp;command=unblock"
-                                                           onclick="changeState(this,'<?php echo urlencode($trackback['ip']); ?>', 'ip'); return false;"
+                                                           href="<?php echo $blogURL; ?>/owner/communication/filter/change/?value=<?php echo urlencode($trackbackRow['ip']); ?>&amp;mode=ip&amp;command=unblock"
+                                                           onclick="changeState(this,'<?php echo urlencode($trackbackRow['ip']); ?>', 'ip'); return false;"
                                                            title="<?php echo _t('이 IP는 차단되었습니다. 클릭하시면 차단을 해제합니다.'); ?>"><span
                                                                 class="text"><?php echo _t('[차단됨]'); ?></span></a>
 <?php
             } else {
 ?>
-                                                        <a id="ipFilter<?php echo urlencode($trackback['ip']); ?>-<?php echo $i; ?>"
+                                                        <a id="ipFilter<?php echo urlencode($trackbackRow['ip']); ?>-<?php echo $i; ?>"
                                                            class="unblock-icon bullet"
-                                                           href="<?php echo $blogURL; ?>/owner/communication/filter/change/?value=<?php echo urlencode($trackback['ip']); ?>&amp;mode=ip&amp;command=block"
-                                                           onclick="changeState(this,'<?php echo urlencode($trackback['ip']); ?>', 'ip'); return false;"
+                                                           href="<?php echo $blogURL; ?>/owner/communication/filter/change/?value=<?php echo urlencode($trackbackRow['ip']); ?>&amp;mode=ip&amp;command=block"
+                                                           onclick="changeState(this,'<?php echo urlencode($trackbackRow['ip']); ?>', 'ip'); return false;"
                                                            title="<?php echo _t('이 IP는 차단되지 않았습니다. 클릭하시면 차단합니다.'); ?>"><span
                                                                 class="text"><?php echo _t('[허용됨]'); ?></span></a>
 <?php
             }
 ?>
 
-                                                    <a href="?ip=<?php echo urlencode(escapeJSInAttribute($trackback['ip'])); ?>"
-                                                       title="<?php echo _t('이 IP로 등록된 걸린글 목록을 보여줍니다.'); ?>"><?php echo $trackback['ip']; ?></a>
+                                                    <a href="?ip=<?php echo urlencode(escapeJSInAttribute($trackbackRow['ip'])); ?>"
+                                                       title="<?php echo _t('이 IP로 등록된 걸린글 목록을 보여줍니다.'); ?>"><?php echo $trackbackRow['ip']; ?></a>
                                                 </td>
                                                 <td class="trackback">
                                                     <a id="trackbackIcon_<?php echo $i; ?>" class="trackback-off-button button" href="#void"
-                                                       onclick="sendTrackbackResponse(<?php echo $i; ?>,<?php echo $trackback['entry']; ?>);return false;"
+                                                       onclick="sendTrackbackResponse(<?php echo $i; ?>,<?php echo $trackbackRow['entry']; ?>);return false;"
                                                        title="<?php echo _t('걸린 글에 답글을 겁니다.'); ?>"><span
                                                             class="text"><?php echo _t('글걸기'); ?></span></a>
                                                 </td>
@@ -502,15 +502,15 @@ if (sizeof($trackbacks) == 0) {
         if (isset($tabsClass['received'])) {
 ?>
                                                     <a class="delete-button button"
-                                                       href="<?php echo $blogURL; ?>/owner/communication/trackback/delete/<?php echo $trackback['id']; ?>"
-                                                       onclick="trashTrackback(<?php echo $trackback['id']; ?>); return false;"
+                                                       href="<?php echo $blogURL; ?>/owner/communication/trackback/delete/<?php echo $trackbackRow['id']; ?>"
+                                                       onclick="trashTrackback(<?php echo $trackbackRow['id']; ?>); return false;"
                                                        title="<?php echo _t('이 걸린글을 삭제합니다.'); ?>"><span class="text"><?php echo _t('삭제'); ?></span></a>
 <?php
         } else {
 ?>
                                                     <a class="delete-button button"
-                                                       href="<?php echo $blogURL; ?>/owner/communication/trackback/log/remove/<?php echo $trackback['id']; ?>"
-                                                       onclick="removeTrackbackLog(<?php echo $trackback['id']; ?>); return false;"
+                                                       href="<?php echo $blogURL; ?>/owner/communication/trackback/log/remove/<?php echo $trackbackRow['id']; ?>"
+                                                       onclick="removeTrackbackLog(<?php echo $trackbackRow['id']; ?>); return false;"
                                                        title="<?php echo _t('이 글걸기 기록을 삭제합니다.'); ?>"><span
                                                             class="text"><?php echo _t('삭제'); ?></span></a>
 <?php

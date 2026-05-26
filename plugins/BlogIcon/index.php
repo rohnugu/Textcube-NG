@@ -10,15 +10,17 @@ function BlogIcon_main($target, $mother) {
 		if (empty($mother['homepage'])) {
 			$imageStr = "<img src=\"{$pluginURL}/images/secret.png\" alt=\"\" width=\"{$ico_size}\" height=\"{$ico_size}\" />";
 		} else {
-			$slash = ($mother['homepage']{strlen($mother['homepage']) - 1} == '/' ? '' : '/');
-			$imageStr = "<img src=\"{$mother['homepage']}{$slash}index.gif\" alt=\"\" width=\"{$ico_size}\" height=\"{$ico_size}\" onerror=\"this.src = '{$pluginURL}/images/secret.png'\" />";
+			$slash = (substr($mother['homepage'], -1) === '/' ? '' : '/');
+			$safeHomepage = htmlspecialchars($mother['homepage'] . $slash, ENT_QUOTES, 'UTF-8');
+			$imageStr = "<img src=\"{$safeHomepage}index.gif\" alt=\"\" width=\"{$ico_size}\" height=\"{$ico_size}\" onerror=\"this.src = '{$pluginURL}/images/secret.png'\" />";
 		}
 	} else {
 		if (empty($mother['homepage'])) {
 			$imageStr = "<img src=\"{$pluginURL}/images/default.png\" alt=\"\" width=\"{$ico_size}\" height=\"{$ico_size}\" />";
 		} else {
-			$slash = ($mother['homepage']{strlen($mother['homepage']) - 1} == '/' ? '' : '/');
-			$imageStr = "<img src=\"{$mother['homepage']}{$slash}index.gif\" alt=\"\" width=\"{$ico_size}\" height=\"{$ico_size}\" onerror=\"this.src = '{$pluginURL}/images/default.png'\" />";
+			$slash = (substr($mother['homepage'], -1) === '/' ? '' : '/');
+			$safeHomepage = htmlspecialchars($mother['homepage'] . $slash, ENT_QUOTES, 'UTF-8');
+			$imageStr = "<img src=\"{$safeHomepage}index.gif\" alt=\"\" width=\"{$ico_size}\" height=\"{$ico_size}\" onerror=\"this.src = '{$pluginURL}/images/default.png'\" />";
 		}
 	}
 	

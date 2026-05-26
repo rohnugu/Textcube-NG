@@ -25,7 +25,8 @@
 */
 function KeywordUI_bindKeyword($target, $mother) {
     $context = Model_Context::getInstance();
-    $target = "<a href=\"#\" class=\"key1\" onclick=\"openKeyword('" . $context->getProperty("uri.blog") . "/keylog/" . rawurlencode($target) . "'); return false\">{$target}</a>";
+    $displayTarget = htmlspecialchars($target, ENT_QUOTES, 'UTF-8');
+    $target = "<a href=\"#\" class=\"key1\" onclick=\"openKeyword('" . htmlspecialchars($context->getProperty("uri.blog"), ENT_QUOTES, 'UTF-8') . "/keylog/" . rawurlencode($target) . "'); return false\">{$displayTarget}</a>";
 
     return $target;
 }
@@ -46,7 +47,9 @@ function KeywordUI_bindTag($target, $mother) {
         $keywordNames = getKeywordNames($blogid);
         foreach ($target as $tag => $tagLink) {
             if (in_array($tag, $keywordNames) == true) {
-                $tagsWithKeywords[$tag] = $tagLink . "<a href=\"#\" class=\"key1\" onclick=\"openKeyword('$blogURL/keylog/" . URL::encode($tag) . "'); return false\"><img src=\"" . $pluginURL . "/images/flag_green.gif\" alt=\"Keyword " . $tag . "\"/></a>";
+                $safeBlogURL = htmlspecialchars($blogURL, ENT_QUOTES, 'UTF-8');
+                $safeTag     = htmlspecialchars($tag, ENT_QUOTES, 'UTF-8');
+                $tagsWithKeywords[$tag] = $tagLink . "<a href=\"#\" class=\"key1\" onclick=\"openKeyword('{$safeBlogURL}/keylog/" . URL::encode($tag) . "'); return false\"><img src=\"" . $pluginURL . "/images/flag_green.gif\" alt=\"Keyword {$safeTag}\"/></a>";
             } else {
                 $tagsWithKeywords[$tag] = $tagLink;
             }

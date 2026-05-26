@@ -5,9 +5,9 @@
 
 function getFileExtension($path) {
 	for ($i = strlen($path) - 1; $i >= 0; $i--) {
-		if ($path{$i} == '.')
+		if ($path[$i] == '.')
 			return strtolower(substr($path, $i + 1));
-		if (($path{$i} == '/') || ($path{$i} == '\\'))
+		if (($path[$i] == '/') || ($path[$i] == '\\'))
 			break;
 	}
 	return '';

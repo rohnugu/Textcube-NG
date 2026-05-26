@@ -23,46 +23,59 @@ function URLkeeper($target)
 {
 	global $configVal;
 	requireComponent('Tattertools.Function.misc');
-	$data = Setting::fetchConfigVal( $configVal);
-	$config  = $data['viewForm'];
+	$data = Setting::fetchConfigVal($configVal);
+	$config = (int)($data['viewForm'] ?? 0);
 	$target .= '
 <script type="text/javascript">
 //<![CDATA[
+(function() {
+	if (top === self) return;
 
-		window.onload = function(){
-		var type = navigator.appName
-		var lang;
-		var msg;
-		var myurl = location.href;
-		var config = "'.$config.'";
-	
-		if (type=="Netscape")
-			lang = navigator.language
-		else
-			lang = navigator.userLanguage
-		
-		// 국가코드에서 앞 2글자만 자름
-		var lang = lang.substr(0,2)
-		// 한글인 경우
-		if (lang == "ko")
-			msg = " 원래 주소인 "+myurl+" 로 접속해주세요.";
-		// 다른 언어인 경우
-		else
-			msg =  "please, visit directly via "+myurl;
-		try {
-			if(top != self){
-				if (config == "1") {
-					window.open(myurl,"_top");
-				}else{
-				if (confirm(msg)) window.open(myurl,"_top");
-				}
+	var myurl = location.href;
+	var config = ' . $config . ';
+	var isExternalFrame = false;
+
+	if (window.location.ancestorOrigins) {
+		// ancestorOrigins: Chrome / Edge / Safari 지원 — 각 상위 프레임 출처를 직접 열거
+		for (var i = 0; i < window.location.ancestorOrigins.length; i++) {
+			if (window.location.ancestorOrigins[i] !== window.location.origin) {
+				isExternalFrame = true;
+				break;
 			}
-		} catch (e) {
-		}	
 		}
+	} else {
+		// ancestorOrigins 미지원(Firefox) — top.location 읽기 시도로 교차 출처 판별
+		// 동일 출처: 읽기 성공 / 교차 출처: SecurityError 발생
+		try {
+			void top.location.href;
+		} catch (e) {
+			isExternalFrame = true;
+		}
+	}
+
+	if (!isExternalFrame) return;
+
+	var lang = (navigator.language || navigator.userLanguage || "en").substr(0, 2);
+	var msg = (lang === "ko")
+		? "원래 주소인 " + myurl + " 로 접속해주세요."
+		: "Please visit directly via " + myurl;
+
+	function bustFrame() {
+		// top.location.replace: 팝업 차단기 영향 없는 탐색 방식
+		try { top.location.replace(myurl); return; } catch (e) {}
+		try { top.location.href = myurl; return; } catch (e) {}
+		location.replace(myurl);
+	}
+
+	if (config === 1) {
+		bustFrame();
+	} else {
+		if (confirm(msg)) bustFrame();
+	}
+})();
 //]]>
 </script>
-'.CRLF;
+' . CRLF;
 	return $target;
 }
 ?>

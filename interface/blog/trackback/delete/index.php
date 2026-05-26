@@ -12,6 +12,7 @@ requireLibrary('blog.skin');
 
 requireStrictRoute();
 $blogid = getBlogId();
+$suri['id'] = (int)$suri['id'];
 $entryId = trashTrackback($blogid, $suri['id']);
 if ($entryId !== false) {
 	$skin = new Skin($skinSetting['skin']);

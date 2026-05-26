@@ -268,7 +268,17 @@ function writeSkinHtml($blogid, $contents, $mode, $file) {
 
 function getCSSContent($blogid, $file) {
 	global $skinSetting;
-	return @file_get_contents(__TEXTCUBE_SKIN_DIR__."/{$skinSetting['skin']}/$file");
+	// Path traversal 방어 — realpath() 로 정규화 후 스킨 디렉토리 내부·CSS 확장자 검증
+	$skinBase = realpath(__TEXTCUBE_SKIN_DIR__ . '/' . $skinSetting['skin']);
+	if ($skinBase === false) return false;
+	$resolved = realpath($skinBase . '/' . $file);
+	if ($resolved === false
+		|| strncmp($resolved, $skinBase . DIRECTORY_SEPARATOR, strlen($skinBase) + 1) !== 0
+		|| !preg_match('/\.css$/i', $resolved)
+	) {
+		return false;
+	}
+	return @file_get_contents($resolved);
 }
 
 function setSkinSetting($blogid, $setting) {

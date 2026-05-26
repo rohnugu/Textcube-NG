@@ -171,6 +171,7 @@ define($ConstantName,1, TRUE);
 *                               X P a t h B a s e  -  Class
 * ===============================================================================================
 ************************************************************************************************/
+#[AllowDynamicProperties]
 class XPathBase {
   var $_lastError;
 
@@ -194,7 +195,7 @@ class XPathBase {
   /**
    * Constructor
    */
-  function XPathBase() {
+  function __construct() {
     # $this->bDebugXmlParse = TRUE;
     $this->properties['verboseLevel'] = 0;  // 0=silent, 1 and above produce verbose output (an echo to screen).
 
@@ -748,6 +749,7 @@ class XPathBase {
 * ===============================================================================================
 ************************************************************************************************/
 
+#[AllowDynamicProperties]
 class XPathEngine extends XPathBase {
 
   // List of supported XPath axes.
@@ -844,8 +846,8 @@ class XPathEngine extends XPathBase {
    *                                 options.
    * @see   importFromFile(), importFromString(), setXmlOptions()
    */
-  function XPathEngine($userXmlOptions=array()) {
-    parent::XPathBase();
+  function __construct($userXmlOptions=array()) {
+    parent::__construct();
     // Default to not folding case
     $this->parseOptions[XML_OPTION_CASE_FOLDING] = FALSE;
     // And not skipping whitespace
@@ -5122,6 +5124,7 @@ define('XPATH_QUERYHIT_ALL'   , 1);
 define('XPATH_QUERYHIT_FIRST' , 2);
 define('XPATH_QUERYHIT_UNIQUE', 3);
 
+#[AllowDynamicProperties]
 class XPath extends XPathEngine {
 
   /**
@@ -5138,15 +5141,15 @@ class XPath extends XPathEngine {
    *                                  import fails, the object will be set to FALSE.
    * @see    parent::XPathEngine()
    */
-  function XPath($fileName='', $userXmlOptions=array()) {
-    parent::XPathEngine($userXmlOptions);
+  function __construct($fileName='', $userXmlOptions=array()) {
+    parent::__construct($userXmlOptions);
     $this->properties['modMatch'] = XPATH_QUERYHIT_ALL;
     if ($fileName) {
       if (!$this->importFromFile($fileName)) {
         // Re-run the base constructor to "reset" the object.  If the user has any sense, then
         // they will have created the object, and then explicitly called importFromFile(), giving
         // them the chance to catch and handle the error properly.
-        parent::XPathEngine($userXmlOptions);
+        parent::__construct($userXmlOptions);
       }
     }
   }

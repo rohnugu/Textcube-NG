@@ -23,7 +23,7 @@ $approvedToSend = true;
 
 /* If referred by other site */
 if( !empty($_SERVER["HTTP_REFERER"]) && $icon_size > 0 ) {
-	$host = split( '/', $_SERVER["HTTP_REFERER"] );
+	$host = explode( '/', $_SERVER["HTTP_REFERER"] );
 	$host = $host[2];
 
 	$favicon_daily_traffic = 

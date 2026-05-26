@@ -106,6 +106,7 @@ function Auth_OpenID_supportsSReg($endpoint)
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_OpenID_SRegBase extends Auth_OpenID_Extension {
     /**
      * Extract the simple registration namespace URI from the given
@@ -166,6 +167,7 @@ class Auth_OpenID_SRegBase extends Auth_OpenID_Extension {
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_OpenID_SRegRequest extends Auth_OpenID_SRegBase {
 
     var $ns_alias = 'sreg';
@@ -414,11 +416,12 @@ class Auth_OpenID_SRegRequest extends Auth_OpenID_SRegBase {
  *
  * @package OpenID
  */
+#[AllowDynamicProperties]
 class Auth_OpenID_SRegResponse extends Auth_OpenID_SRegBase {
 
     var $ns_alias = 'sreg';
 
-    function Auth_OpenID_SRegResponse($data=null,
+    function __construct($data=null,
                                       $sreg_ns_uri=Auth_OpenID_SREG_NS_URI)
     {
         if ($data === null) {

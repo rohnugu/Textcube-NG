@@ -106,7 +106,7 @@ if (!empty($lang)) {
 				$output .= '$__text['. $text. '] = \''. $__text[$index]. '\';'. $markup_as_left.($addLocation ? ' // '.$NEW__text__location[$text] : ''). CRLF;
 			}
 		} else {
-			$output .= '//$__text['. $text. '] = '. $text{0}. $text{0}. ';'. ($addLocation ? ' // '.$NEW__text__location[$text] : ''). CRLF;
+			$output .= '//$__text['. $text. '] = '. $text[0]. $text[0]. ';'. ($addLocation ? ' // '.$NEW__text__location[$text] : ''). CRLF;
 			$counter['left']++;
 		}
 	}
@@ -115,7 +115,7 @@ if (!empty($lang)) {
 } else {  // new language file.
 	$output .= '<?php'. CRLF;
 	foreach ($NEW__text as $text)
-	$output .= '//$__text['. $text. '] = '. $text{0}. $text{0}. ';'. CRLF;
+	$output .= '//$__text['. $text. '] = '. $text[0]. $text[0]. ';'. CRLF;
 	$output .= '?>';
 }
 echo $output;

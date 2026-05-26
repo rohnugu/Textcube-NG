@@ -24,5 +24,6 @@
 			<summary>FM_Textile_summary</summary>
 			<usedFor editor="modern" />
 		</formatter>
+		<config manifestHandler="FM_Textile_ConfigHandler" />
 	</binding>
 </plugin>

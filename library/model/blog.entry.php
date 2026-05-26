@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 function getEntriesTotalCount($blogid) {
 	global $database;
@@ -49,7 +57,8 @@ function getEntry($blogid, $id, $draft = false) {
 	if($id == 0) {
 		if (!doesHaveOwnership())
 			return null;
-		deleteAttachments($blogid, 0);
+		// HTML5 XHR 업로더 전환으로 인해 parent=0 파일은 저장 전까지 유지해야 함.
+		// 삭제는 사용자가 orphan-check 경고에서 "파일 무시하고 계속"을 선택할 때만 수행.
 		return array('id'    => 0,
 				'userid'     => 0,
 				'draft'      => 0,
@@ -187,6 +196,11 @@ function getEntryListWithPagingByPeriod($blogid, $period, $page, $count) {
 	return Paging::fetch($sql, $page, $count, "$folderURL/{$suri['value']}");
 }
 
+/**
+ * @security raw-sql-escape
+ * LIKE 절에 사용되는 $search는 escapeSearchString()으로 %, _, 특수문자를 이스케이프 처리함.
+ * Paging::fetch()가 완성된 SQL을 받아 실행하는 구조상 prepared statement 적용 불가.
+ */
 function getEntryListWithPagingBySearch($blogid, $search, $page, $count) {
 	global $database, $suri, $folderURL;
 	$search = escapeSearchString($search);
@@ -275,6 +289,11 @@ function getEntriesWithPagingByPeriod($blogid, $period, $page, $count) {
 	return Paging::fetch($sql, $page, $count, "$folderURL/{$suri['value']}");
 }
 
+/**
+ * @security raw-sql-escape
+ * LIKE 절에 사용되는 $search는 escapeSearchString()으로 %, _, 특수문자를 이스케이프 처리함.
+ * Paging::fetch()가 완성된 SQL을 받아 실행하는 구조상 prepared statement 적용 불가.
+ */
 function getEntriesWithPagingBySearch($blogid, $search, $page, $count, $countItem) {
 	global $database, $folderURL, $suri;
 	$search = escapeSearchString($search);
@@ -541,7 +560,8 @@ function addEntry($blogid, $entry, $userid = null) {
 		$slogan = $slogan0 = getSlogan($entry['slogan']);
 	}
 
-	$slogan = POD::escapeString(UTF8::lessenAsEncoding($slogan, 255));
+	$sloganRaw = UTF8::lessenAsEncoding($slogan, 255); // unescaped, for prepared stmt
+	$slogan = POD::escapeString($sloganRaw);
 	$title = POD::escapeString($entry['title']);
 
 	if($entry['category'] == -1) {
@@ -563,28 +583,30 @@ function addEntry($blogid, $entry, $userid = null) {
 	for ($i = 1; $result > 0; $i++) {
 		if ($i > 1000)
 			return false;
-		$slogan = POD::escapeString(UTF8::lessenAsEncoding($slogan0, 245) . '-' . $i);
+		$sloganRaw = UTF8::lessenAsEncoding($slogan0, 245) . '-' . $i;
+		$slogan = POD::escapeString($sloganRaw);
 		$result = POD::queryCount("SELECT slogan FROM {$database['prefix']}Entries WHERE blogid = $blogid AND slogan = '$slogan' AND draft = 0 LIMIT 1");
 	}
 	$userid = $entry['userid'];
-	$content = POD::escapeString($entry['content']);
-	$contentformatter = POD::escapeString($entry['contentformatter']);
-	$contenteditor = POD::escapeString($entry['contenteditor']);
-	$password = POD::escapeString(generatePassword());
-	$location = POD::escapeString($entry['location']);
-	$latitude = isset($entry['latitude']) && !is_null($entry['latitude']) ? $entry['latitude'] : 'NULL';
-	$longitude = isset($entry['longitude']) && !is_null($entry['longitude']) ? $entry['longitude'] : 'NULL';
+	$contentVal = $entry['content'];
+	$contentformatterVal = $entry['contentformatter'];
+	$contenteditorVal = $entry['contenteditor'];
+	$passwordVal = generatePassword();
+	$locationVal = $entry['location'];
+	$latitudeVal = (isset($entry['latitude']) && !is_null($entry['latitude'])) ? (float)$entry['latitude'] : null;
+	$longitudeVal = (isset($entry['longitude']) && !is_null($entry['longitude'])) ? (float)$entry['longitude'] : null;
+	$useTimestamp = true;
+	$publishedVal = null;
 	if (!isset($entry['firstEntry']) && isset($entry['published']) && is_numeric($entry['published']) && ($entry['published'] >= 2)) {
-		$published = $entry['published'];
+		$publishedVal = (int)$entry['published'];
+		$useTimestamp = false;
 		$entry['visibility'] = 0 - $entry['visibility'];
 		if($entry['visibility'] < 0) {
 			$closestReservedTime = Setting::getBlogSettingGlobal('closestReservedPostTime',INT_MAX);
-			if($published < $closestReservedTime) {
-				Setting::setBlogSetting('closestReservedPostTime',$published,true);
+			if($publishedVal < $closestReservedTime) {
+				Setting::setBlogSetting('closestReservedPostTime',$publishedVal,true);
 			}
 		}
-	} else {
-		$published = 'UNIX_TIMESTAMP()';
 	}
 
 	$currentMaxId = POD::queryCell("SELECT MAX(id) FROM {$database['prefix']}Entries WHERE blogid = $blogid AND draft = 0");
@@ -593,35 +615,74 @@ function addEntry($blogid, $entry, $userid = null) {
 	} else {
 		$id = 1;
 	}
-	$result = POD::query("INSERT INTO {$database['prefix']}Entries
-			(blogid, userid, id, draft, visibility, starred, category, title, slogan, content, contentformatter,
-			 contenteditor, location, latitude, longitude, password, acceptcomment, accepttrackback, published, created, modified,
-			 comments, trackbacks, pingbacks)
-			VALUES (
-			$blogid,
-			$userid,
-			$id,
-			0,
-			{$entry['visibility']},
-			{$entry['starred']},
-			{$entry['category']},
-			'$title',
-			'$slogan',
-			'$content',
-			'$contentformatter',
-			'$contenteditor',
-			'$location',
-			$latitude,
-			$longitude,
-			'$password',
-			{$entry['acceptcomment']},
-			{$entry['accepttrackback']},
-			$published,
-			UNIX_TIMESTAMP(),
-			UNIX_TIMESTAMP(),
-			0,
-			0,
-			0)");
+
+	// Prepared statement — INSERT with external user input (SQL Injection 대응)
+	// $slogan and $title were escaped for use in earlier SELECT queries;
+	// for the prepared statement use the original unescaped values.
+	$titleVal  = $entry['title'];
+	$sloganVal = $sloganRaw; // $sloganRaw tracks the unescaped final slogan (set in the loop above)
+
+	if ($useTimestamp) {
+		$stmt = POD::prepare("INSERT INTO {$database['prefix']}Entries
+				(blogid, userid, id, draft, visibility, starred, category, title, slogan, content, contentformatter,
+				 contenteditor, location, latitude, longitude, password, acceptcomment, accepttrackback, published, created, modified,
+				 comments, trackbacks, pingbacks)
+				VALUES (?,?,?,0,?,?,?,?,?,?,?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),0,0,0)");
+	} else {
+		$stmt = POD::prepare("INSERT INTO {$database['prefix']}Entries
+				(blogid, userid, id, draft, visibility, starred, category, title, slogan, content, contentformatter,
+				 contenteditor, location, latitude, longitude, password, acceptcomment, accepttrackback, published, created, modified,
+				 comments, trackbacks, pingbacks)
+				VALUES (?,?,?,0,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),0,0,0)");
+	}
+	if (!$stmt) return false;
+
+	if ($useTimestamp) {
+		// types: blogid(i) userid(i) id(i) visibility(i) starred(i) category(i) title(s) slogan(s) content(s) contentformatter(s) contenteditor(s) location(s) latitude(d) longitude(d) password(s) acceptcomment(i) accepttrackback(i) = 17 params
+		POD::bindAndExecute($stmt, 'iiiiiissssssddsii',
+			(int)$blogid,
+			(int)$userid,
+			(int)$id,
+			(int)$entry['visibility'],
+			(int)$entry['starred'],
+			(int)$entry['category'],
+			$titleVal,
+			$sloganVal,
+			$contentVal,
+			$contentformatterVal,
+			$contenteditorVal,
+			$locationVal,
+			$latitudeVal,
+			$longitudeVal,
+			$passwordVal,
+			(int)$entry['acceptcomment'],
+			(int)$entry['accepttrackback']
+		);
+	} else {
+		// types: blogid(i) userid(i) id(i) visibility(i) starred(i) category(i) title(s) slogan(s) content(s) contentformatter(s) contenteditor(s) location(s) latitude(d) longitude(d) password(s) acceptcomment(i) accepttrackback(i) published(i) = 18 params
+		POD::bindAndExecute($stmt, 'iiiiiissssssddsiii',
+			(int)$blogid,
+			(int)$userid,
+			(int)$id,
+			(int)$entry['visibility'],
+			(int)$entry['starred'],
+			(int)$entry['category'],
+			$titleVal,
+			$sloganVal,
+			$contentVal,
+			$contentformatterVal,
+			$contenteditorVal,
+			$locationVal,
+			$latitudeVal,
+			$longitudeVal,
+			$passwordVal,
+			(int)$entry['acceptcomment'],
+			(int)$entry['accepttrackback'],
+			$publishedVal
+		);
+	}
+	$result = $stmt->affected_rows > 0 || $stmt->errno === 0;
+	$stmt->close();
 	if (!$result)
 		return false;
 	POD::query("UPDATE {$database['prefix']}Attachments SET parent = $id WHERE blogid = $blogid AND parent = 0");
@@ -672,7 +733,8 @@ function updateEntry($blogid, $entry, $updateDraft = 0) {
 	} else {
 		$slogan = $slogan0 = getSlogan($entry['slogan']);
 	}
-	$slogan = POD::escapeString(UTF8::lessenAsEncoding($slogan, 255));
+	$sloganRaw = UTF8::lessenAsEncoding($slogan, 255); // unescaped, for prepared stmt
+	$slogan = POD::escapeString($sloganRaw);
 	$title = POD::escapeString($entry['title']);
 
 	if($entry['category'] == -1) {
@@ -708,58 +770,183 @@ function updateEntry($blogid, $entry, $updateDraft = 0) {
 		for ($i = 1; $result > 0; $i++) {
 			if ($i > 1000)
 				return false;
-			$slogan = POD::escapeString(UTF8::lessenAsEncoding($slogan0, 245) . '-' . $i);
+			$sloganRaw = UTF8::lessenAsEncoding($slogan0, 245) . '-' . $i;
+			$slogan = POD::escapeString($sloganRaw);
 			$result = POD::queryCount("SELECT slogan FROM {$database['prefix']}Entries WHERE blogid = $blogid AND slogan = '$slogan' AND draft = 0 LIMIT 1");
 		}
 	}
 	$tags = getTagsWithEntryString($entry['tag']);
 	Tag::modifyTagsWithEntryId($blogid, $entry['id'], $tags);
 
-	$location = POD::escapeString($entry['location']);
-	$latitude = isset($entry['latitude']) && !is_null($entry['latitude']) ? $entry['latitude'] : 'NULL';
-	$longitude = isset($entry['longitude']) && !is_null($entry['longitude']) ? $entry['longitude'] : 'NULL';
-	$content = POD::escapeString($entry['content']);
-	$contentformatter = POD::escapeString($entry['contentformatter']);
-	$contenteditor = POD::escapeString($entry['contenteditor']);
+	$locationVal = $entry['location'];
+	$latitudeVal = (isset($entry['latitude']) && !is_null($entry['latitude'])) ? (float)$entry['latitude'] : null;
+	$longitudeVal = (isset($entry['longitude']) && !is_null($entry['longitude'])) ? (float)$entry['longitude'] : null;
+	$contentVal = $entry['content'];
+	$contentformatterVal = $entry['contentformatter'];
+	$contenteditorVal = $entry['contenteditor'];
+	$publishedMode = 'keep'; // keep current published value
+	$publishedVal = null;
 	switch ($entry['published']) {
 		case 0:
-			$published = 'published';
+			$publishedMode = 'keep';
 			break;
 		case 1:
-			$published = 'UNIX_TIMESTAMP()';
+			$publishedMode = 'now';
 			break;
 		default:
-			$published = $entry['published'];
+			$publishedVal = (int)$entry['published'];
+			$publishedMode = 'custom';
 			$entry['visibility'] = 0 - $entry['visibility'];
 			if($entry['visibility'] < 0) {
 				$closestReservedTime = Setting::getBlogSettingGlobal('closestReservedPostTime',9999999999);
-				if($published < $closestReservedTime) {
-					Setting::setBlogSetting('closestReservedPostTime',$published,true);
+				if($publishedVal < $closestReservedTime) {
+					Setting::setBlogSetting('closestReservedPostTime',$publishedVal,true);
 				}
 			}
 			break;
 	}
 
-	$result = POD::query("UPDATE {$database['prefix']}Entries
-			SET
-				userid             = {$entry['userid']},
-				visibility         = {$entry['visibility']},
-				starred            = {$entry['starred']},
-				category           = {$entry['category']},
-				draft              = 0,
-				location           = '$location',
-				latitude           = $latitude,
-				longitude          = $longitude,
-				title              = '$title',
-				content            = '$content',
-				contentformatter   = '$contentformatter',
-				contenteditor      = '$contenteditor',
-				slogan             = '$slogan',
-				acceptcomment      = {$entry['acceptcomment']},
-				accepttrackback    = {$entry['accepttrackback']},
-				published          = $published,
-				modified           = UNIX_TIMESTAMP()
-			WHERE blogid = $blogid AND id = {$entry['id']} AND draft = $updateDraft");
+	// Prepared statement — UPDATE with external user input (SQL Injection 대응)
+	// published column handling differs by $publishedMode:
+	//   keep   → published = published  (no placeholder)
+	//   now    → published = UNIX_TIMESTAMP()  (no placeholder)
+	//   custom → published = ?  (one extra placeholder)
+	$titleVal  = $entry['title'];
+
+	if ($publishedMode === 'keep') {
+		$sql = "UPDATE {$database['prefix']}Entries
+				SET
+					userid           = ?,
+					visibility       = ?,
+					starred          = ?,
+					category         = ?,
+					draft            = 0,
+					location         = ?,
+					latitude         = ?,
+					longitude        = ?,
+					title            = ?,
+					content          = ?,
+					contentformatter = ?,
+					contenteditor    = ?,
+					slogan           = ?,
+					acceptcomment    = ?,
+					accepttrackback  = ?,
+					published        = published,
+					modified         = UNIX_TIMESTAMP()
+				WHERE blogid = ? AND id = ? AND draft = ?";
+		// types: userid(i) visibility(i) starred(i) category(i) location(s) latitude(d) longitude(d) title(s) content(s) contentformatter(s) contenteditor(s) slogan(s) acceptcomment(i) accepttrackback(i) blogid(i) id(i) draft(i) = 17 params
+		$stmt = POD::prepare($sql);
+		if (!$stmt) return false;
+		POD::bindAndExecute($stmt, 'iiiisddsssssiiiii',
+			(int)$entry['userid'],
+			(int)$entry['visibility'],
+			(int)$entry['starred'],
+			(int)$entry['category'],
+			$locationVal,
+			$latitudeVal,
+			$longitudeVal,
+			$titleVal,
+			$contentVal,
+			$contentformatterVal,
+			$contenteditorVal,
+			$sloganRaw,
+			(int)$entry['acceptcomment'],
+			(int)$entry['accepttrackback'],
+			(int)$blogid,
+			(int)$entry['id'],
+			(int)$updateDraft
+		);
+	} elseif ($publishedMode === 'now') {
+		$sql = "UPDATE {$database['prefix']}Entries
+				SET
+					userid           = ?,
+					visibility       = ?,
+					starred          = ?,
+					category         = ?,
+					draft            = 0,
+					location         = ?,
+					latitude         = ?,
+					longitude        = ?,
+					title            = ?,
+					content          = ?,
+					contentformatter = ?,
+					contenteditor    = ?,
+					slogan           = ?,
+					acceptcomment    = ?,
+					accepttrackback  = ?,
+					published        = UNIX_TIMESTAMP(),
+					modified         = UNIX_TIMESTAMP()
+				WHERE blogid = ? AND id = ? AND draft = ?";
+		// same 17 params
+		$stmt = POD::prepare($sql);
+		if (!$stmt) return false;
+		POD::bindAndExecute($stmt, 'iiiisddsssssiiiii',
+			(int)$entry['userid'],
+			(int)$entry['visibility'],
+			(int)$entry['starred'],
+			(int)$entry['category'],
+			$locationVal,
+			$latitudeVal,
+			$longitudeVal,
+			$titleVal,
+			$contentVal,
+			$contentformatterVal,
+			$contenteditorVal,
+			$sloganRaw,
+			(int)$entry['acceptcomment'],
+			(int)$entry['accepttrackback'],
+			(int)$blogid,
+			(int)$entry['id'],
+			(int)$updateDraft
+		);
+	} else {
+		$sql = "UPDATE {$database['prefix']}Entries
+				SET
+					userid           = ?,
+					visibility       = ?,
+					starred          = ?,
+					category         = ?,
+					draft            = 0,
+					location         = ?,
+					latitude         = ?,
+					longitude        = ?,
+					title            = ?,
+					content          = ?,
+					contentformatter = ?,
+					contenteditor    = ?,
+					slogan           = ?,
+					acceptcomment    = ?,
+					accepttrackback  = ?,
+					published        = ?,
+					modified         = UNIX_TIMESTAMP()
+				WHERE blogid = ? AND id = ? AND draft = ?";
+		// types: userid(i) visibility(i) starred(i) category(i) location(s) latitude(d) longitude(d) title(s) content(s) contentformatter(s) contenteditor(s) slogan(s) acceptcomment(i) accepttrackback(i) published(i) blogid(i) id(i) draft(i) = 18 params
+		$stmt = POD::prepare($sql);
+		if (!$stmt) return false;
+		POD::bindAndExecute($stmt, 'iiiisddsssssiiiiii',
+			(int)$entry['userid'],
+			(int)$entry['visibility'],
+			(int)$entry['starred'],
+			(int)$entry['category'],
+			$locationVal,
+			$latitudeVal,
+			$longitudeVal,
+			$titleVal,
+			$contentVal,
+			$contentformatterVal,
+			$contenteditorVal,
+			$sloganRaw,
+			(int)$entry['acceptcomment'],
+			(int)$entry['accepttrackback'],
+			$publishedVal,
+			(int)$blogid,
+			(int)$entry['id'],
+			(int)$updateDraft
+		);
+	}
+	$result = $stmt->affected_rows >= 0 && $stmt->errno === 0;
+	$stmt->close();
+
 	if ($result)
 		@POD::query("DELETE FROM {$database['prefix']}Entries WHERE blogid = $blogid AND id = {$entry['id']} AND draft = 1");
 

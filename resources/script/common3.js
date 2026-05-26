@@ -1435,14 +1435,26 @@ function thisMovie(movieName) {
 }
 
 function copyUrl(url, nest) {
+	if (navigator.clipboard && window.isSecureContext) {
+		navigator.clipboard.writeText(url).then(function() {
+			alert(messages["trackbackUrlCopied"]);
+		}, function() {
+			_legacyCopyUrl(url, nest);
+		});
+	} else {
+		_legacyCopyUrl(url, nest);
+	}
+}
+
+function _legacyCopyUrl(url, nest) {
 	try {
-		window.clipboardData.setData('Text',url);
-		window.alert(messages["trackbackUrlCopied"]);
+		window.clipboardData.setData('Text', url);
+		alert(messages["trackbackUrlCopied"]);
 	} catch(e) {
-		s = window.getSelection();
+		var s = window.getSelection();
 		var r1 = document.createRange();
 		r1.setStartBefore(nest);
-		r1.setEndAfter(nest) ;
+		r1.setEndAfter(nest);
 		s.addRange(r1);
 	}
 }

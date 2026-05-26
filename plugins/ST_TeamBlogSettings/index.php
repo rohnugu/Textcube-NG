@@ -55,6 +55,7 @@ function getTeamProfileView($target, $mother){
 }
 
 function getTeamProfile($userid){
+	if (is_null($userid)) return '';
 	global $database, $serviceURL, $configVal;
 	requireComponent('Textcube.Function.misc');
 	$data = Setting::fetchConfigVal($configVal);
@@ -81,7 +82,7 @@ function getTeamProfile($userid){
 }
 
 function getTeamBlogSettings() {
-	global $database, $service, $serviceURL, $pluginURL, $configVal;
+	global $database, $service, $serviceURL, $pluginURL, $configVal, $blogURL;
 	requireComponent('Textcube.Function.misc');
 	$data = Setting::fetchConfigVal($configVal);
 	getTeamBlogInitConfigVal($data);
@@ -163,12 +164,12 @@ function getTeamBlogSettings() {
 											var familyCheck;
 											var sizeCheck;
 											var html = ////
-												'<input type="text" id="fontColor" class="input-text2" style="<?php echo empty($color) ? '' : 'color:$color'; ?>;" value="<?php echo $color;?>" />' + 
+												'<input type="text" id="fontColor" class="input-text2" style="<?php echo empty($color) ? '' : 'color:' . htmlspecialchars($color, ENT_QUOTES, 'UTF-8'); ?>;" value="<?php echo htmlspecialchars($color, ENT_QUOTES, 'UTF-8');?>" />' +
 												'<select id="fontColorList" style="width:80px;height:19px;" onchange="styleExecCommand(\'fontColor\', \'fontcolor\', this.value);">' +
 													'<option class="head-option" value=""><?php echo _t('글자색'); ?><\/option>';
 											for (var i = 0; i < colors.length; ++i) {
 												<?php
-													if(isset($style[3]) && !empty($style[3])) echo "colorCheck = (colors[i] == '".str_replace("#","",$color)."')?' selected ':'';";
+													if(isset($style[3]) && !empty($style[3])) echo "colorCheck = (colors[i] == '".preg_replace('/[^0-9a-fA-F]/',"",str_replace("#","",$color))."')?' selected ':'';";
 												?>
 												html += '<option style="color:#' + colors[i] + ';" value="#' + colors[i] + '" ' + colorCheck + '>#' + colors[i] + '<\/option>';
 											}
@@ -182,14 +183,14 @@ function getTeamBlogSettings() {
 												var fontinfo = fontset[i].split(':');
 												if (fontinfo.length != 3) continue;
 												<?php
-													if(isset($style[4]) && !empty($style[4])) echo "familyCheck = (fontinfo[1] == ".$family[0].")?' selected ':'';";
+													if(isset($style[4]) && !empty($style[4])) echo "familyCheck = (fontinfo[1] == ".json_encode($family[0]).")?' selected ':'';";
 												?>
 												html += '<option style="font-family: \'' + fontinfo[1] + '\';" value="\'' + fontinfo[1] + '\', \'' + fontinfo[2] + '\'"' + familyCheck + '>' + fontinfo[0] + '<\/option>';
 											}
 											for (var i = 0; i < defaultfonts.length; ++i) {
 												var entry = defaultfonts[i];
 												<?php
-													if(isset($style[4]) && !empty($style[4])) echo "familyCheck = (entry[0] == ".$family[0].")?' selected ':'';";
+													if(isset($style[4]) && !empty($style[4])) echo "familyCheck = (entry[0] == ".json_encode($family[0]).")?' selected ':'';";
 												?>
 												html += '<option style="font-family: \'' + entry[0] + '\';" value="\'' + entry.join("','") + '\'" ' + familyCheck + '>' + entry[0] + '<\/option>';
 											}
@@ -200,7 +201,7 @@ function getTeamBlogSettings() {
 													'<option class="head-option" value=""><?php echo _t('크기'); ?><\/option>';
 											for (var i = 8; i < 16; ++i) {
 												<?php
-													if(isset($style[5]) && !empty($style[5])) echo "sizeCheck = (i == ".$size.")?' selected ':'';";
+													if(isset($style[5]) && !empty($style[5])) echo "sizeCheck = (i == ".(int)$size.")?' selected ':'';";
 												?>
 												html += '<option value="' + i + '" ' + sizeCheck + '>' + i + 'pt<\/option>';
 											}
@@ -255,16 +256,16 @@ function getTeamBlogSettings() {
 function getTeamContentsSave($target){
 	global $database;
 	$flag = isset($_POST['flag']) ? $_POST['flag'] : '';
-	$style = isset($_POST['fontstyle']) ? $_POST['fontstyle'] : '';
+	$style = POD::escapeString(isset($_POST['fontstyle']) ? $_POST['fontstyle'] : '');
 	$profile = isset($_POST['profile']) ? $_POST['profile'] : '';
 	if(doesHaveOwnership() && doesHaveMembership()){
 		if($flag == "style"){
-			if(POD::execute("UPDATE {$database['prefix']}TeamUserSettings SET style=\"{$style}\", updated=UNIX_TIMESTAMP() WHERE blogid=".getBlogId()." and userid=".getUserId())){
+			if(POD::execute("UPDATE {$database['prefix']}TeamUserSettings SET style=\"{$style}\", updated=UNIX_TIMESTAMP() WHERE blogid=".(int)getBlogId()." and userid=".(int)getUserId())){
 				Respond::ResultPage(0);
 			}
 		}else if($flag == "profile"){
 			$profile = POD::escapeString(UTF8::lessenAsEncoding($profile, 65535));
-			if(POD::execute("UPDATE {$database['prefix']}TeamUserSettings SET profile=\"{$profile}\", updated=UNIX_TIMESTAMP() WHERE blogid=".getBlogId()." and userid=".getUserId())){
+			if(POD::execute("UPDATE {$database['prefix']}TeamUserSettings SET profile=\"{$profile}\", updated=UNIX_TIMESTAMP() WHERE blogid=".(int)getBlogId()." and userid=".(int)getUserId())){
 				Respond::ResultPage(0);
 			}
 		}
@@ -326,7 +327,7 @@ function getAddAttachment($file){
 		@chmod($path,0777);
 	}
 	do{
-		$attachment['name']=rand(1000000000,9999999999).".".$attachment['ext'];
+		$attachment['name']=random_int(1000000000,9999999999).".".$attachment['ext'];
 		$attachment['path']="$path/{$attachment['name']}";
 	}while(file_exists($attachment['path']));
 

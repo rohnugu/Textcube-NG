@@ -455,7 +455,7 @@ class PHPMailer {
       $to .= $this->AddrFormat($this->to[$i]);
     }
 
-    $toArr = split(',', $to);
+    $toArr = explode(',', $to);
 
     if ($this->Sender != '' && strlen(ini_get('safe_mode'))< 1) {
       $old_from = ini_get('sendmail_from');
@@ -1103,12 +1103,9 @@ class PHPMailer {
       $this->SetError($this->Lang('file_open') . $path);
       return '';
     }
-    $magic_quotes = get_magic_quotes_runtime();
-    set_magic_quotes_runtime(0);
     $file_buffer = fread($fd, filesize($path));
     $file_buffer = $this->EncodeString($file_buffer, $encoding);
     fclose($fd);
-    set_magic_quotes_runtime($magic_quotes);
 
     return $file_buffer;
   }
@@ -1210,7 +1207,7 @@ class PHPMailer {
     $eol = "\r\n";
     $escape = '=';
     $output = '';
-    while( list(, $line) = each($lines) ) {
+    foreach($lines as $line) {
       $linlen = strlen($line);
       $newline = '';
       for($i = 0; $i < $linlen; $i++) {
@@ -1254,17 +1251,18 @@ class PHPMailer {
     /* There should not be any EOL in the string */
     $encoded = preg_replace("[\r\n]", '', $str);
 
+    // DEPRECATED: preg_replace /e modifier removed in PHP 7.0; replaced with preg_replace_callback (PHP 7.4 compat)
+    $qpEncode = function($matches) { return '=' . sprintf('%02X', ord($matches[1])); };
     switch (strtolower($position)) {
       case 'phrase':
-        $encoded = preg_replace("/([^A-Za-z0-9!*+\/ -])/e", "'='.sprintf('%02X', ord('\\1'))", $encoded);
+        $encoded = preg_replace_callback("/([^A-Za-z0-9!*+\/ -])/", $qpEncode, $encoded);
         break;
       case 'comment':
-        $encoded = preg_replace("/([\\(\\)\"])/e", "'='.sprintf('%02X', ord('\\1'))", $encoded);
+        $encoded = preg_replace_callback("/([\\(\\)\"])/", $qpEncode, $encoded);
       case 'text':
       default:
         /* Replace every high ascii, control =, ? and _ characters */
-        $encoded = preg_replace('/([\000-\011\013\014\016-\037\075\077\137\177-\377])/e',
-              "'='.sprintf('%02X', ord('\\1'))", $encoded);
+        $encoded = preg_replace_callback('/([\000-\011\013\014\016-\037\075\077\137\177-\377])/', $qpEncode, $encoded);
         break;
     }
 
@@ -1455,16 +1453,6 @@ class PHPMailer {
    * @return mixed
    */
   function ServerVar($varName) {
-    global $HTTP_SERVER_VARS;
-    global $HTTP_ENV_VARS;
-
-    if(!isset($_SERVER)) {
-      $_SERVER = $HTTP_SERVER_VARS;
-      if(!isset($_SERVER['REMOTE_ADDR'])) {
-        $_SERVER = $HTTP_ENV_VARS; // must be Apache
-      }
-    }
-
     if(isset($_SERVER[$varName])) {
       return $_SERVER[$varName];
     } else {
@@ -1546,7 +1534,7 @@ class PHPMailer {
         $filename  = basename($url);
         $directory = dirname($url);
         $cid       = 'cid:' . md5($filename);
-        $fileParts = split("\\.", $filename);
+        $fileParts = explode(".", $filename);
         $ext       = $fileParts[1];
         $mimeType  = $this->_mime_types($ext);
         $message = preg_replace("/".$images[1][$i]."=\"".preg_quote($url, '/')."\"/Ui", $images[1][$i]."=\"".$cid."\"", $message);

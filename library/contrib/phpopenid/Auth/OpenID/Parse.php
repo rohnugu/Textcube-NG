@@ -84,6 +84,7 @@
  */
 require_once "Auth/OpenID.php";
 
+#[AllowDynamicProperties]
 class Auth_OpenID_Parse {
 
     /**
@@ -108,7 +109,7 @@ class Auth_OpenID_Parse {
     var $_open_tag_expr = "<%s\b";
     var $_close_tag_expr = "<((\/%s\b)|(%s[^>\/]*\/))>";
 
-    function Auth_OpenID_Parse()
+    function __construct()
     {
         $this->_link_find = sprintf("/<link\b(?!:)([^>]*)(?!<)>/%s",
                                     $this->_re_flags);

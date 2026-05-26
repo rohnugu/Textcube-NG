@@ -408,6 +408,7 @@ if (isset($_GET['returnURL'])) {
 												self.isSaved = true;
 												self.draftSaved = false;
 												reloadUploader();
+												refreshAttachList();
 											} else {
 												self.draftSaved = true;
 											}
@@ -446,8 +447,10 @@ if (isset($_GET['returnURL'])) {
 									self.saveAndReturn = function () {
 										self.nowsaving = true;
 										var data = self.getData(true);
-										if (data == null)
+										if (data == null) {
+											self.nowsaving = false;
 											return false;
+										}
 										if(self.isSaved == true) {
 											var request = new HTTPRequest("POST", "<?php echo $blogURL;?>/owner/entry/finish/"+self.entryId);
 										} else {
@@ -950,6 +953,9 @@ if (isset($entry['latitude']) && !is_null($entry['latitude'])) {
 								setFormatter(contentformatterObj.value, contenteditorObj, false);
 								setCurrentEditor(contenteditorObj.value);
 								entryManager = new EntryManager();
+<?php if (defined('__TEXTCUBE_POST__')) { ?>
+								var tcIsNewPost = true;
+<?php } ?>
 								reloadUploader();
 								window.setInterval("entryManager.saveDraft();", 300000);
 								//window.setTimeout(entryManager.saveDraft, 5000);

@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 define( 'TCDEBUG', true );
 
@@ -43,16 +51,16 @@ function __tcSqlLogEnd( $result, $cachedResult = 0 )
 	$tcSqlQueryEndTime = explode(' ', microtime());
 	$elapsed = ($tcSqlQueryEndTime[1] - $__tcSqlQueryBeginTime[1]) + ($tcSqlQueryEndTime[0] - $__tcSqlQueryBeginTime[0]);
 	if( !$client_encoding ) {
-		$client_encoding = str_replace('_','-',mysql_client_encoding());
+		$client_encoding = str_replace('_','-',POD::$db->character_set_name());
 	}
 
 	if( $client_encoding != 'utf8' && function_exists('iconv') ) {
-		$__tcSqlLog[$__tcSqlLogCount]['error'] = iconv( $client_encoding, 'utf-8', mysql_error());
+		$__tcSqlLog[$__tcSqlLogCount]['error'] = iconv( $client_encoding, 'utf-8', POD::$db->error);
 	}
 	else {
-		$__tcSqlLog[$__tcSqlLogCount]['error'] = mysql_error();
+		$__tcSqlLog[$__tcSqlLogCount]['error'] = POD::$db->error;
 	}
-	$__tcSqlLog[$__tcSqlLogCount]['errno'] = mysql_errno();
+	$__tcSqlLog[$__tcSqlLogCount]['errno'] = POD::$db->errno;
 
 	if( $cachedResult == 0 ) {
 		$__tcSqlLog[$__tcSqlLogCount]['elapsed'] = ceil($elapsed * 10000) / 10;
@@ -64,16 +72,16 @@ function __tcSqlLogEnd( $result, $cachedResult = 0 )
 	$__tcSqlLog[$__tcSqlLogCount]['rows'] = 0;
 	$__tcSqlLog[$__tcSqlLogCount]['endtime'] = ($tcSqlQueryEndTime[1] - $__tcPageStartTime[1]) + ($tcSqlQueryEndTime[0] - $__tcPageStartTime[0]);
 	$__tcSqlLog[$__tcSqlLogCount]['endtime'] = sprintf("%4.1f",ceil($__tcSqlLog[$__tcSqlLogCount]['endtime'] * 10000) / 10);
-	if( ! $cachedResult && mysql_errno() == 0 ) {
+	if( ! $cachedResult && POD::$db->errno == 0 ) {
 		switch( strtolower(substr($__tcSqlLog[$__tcSqlLogCount]['sql'], 0, 6 )) )
 		{
 			case 'select':
-				$__tcSqlLog[$__tcSqlLogCount]['rows'] = mysql_num_rows($result);
+				$__tcSqlLog[$__tcSqlLogCount]['rows'] = $result->num_rows;
 				break;
 			case 'insert':
 			case 'delete':
 			case 'update':
-				$__tcSqlLog[$__tcSqlLogCount]['rows'] = mysql_affected_rows();
+				$__tcSqlLog[$__tcSqlLogCount]['rows'] = POD::$db->affected_rows;
 				break;
 		}
 	}
@@ -421,7 +429,7 @@ function dump($data) {
 function dumpToHeader($data) {
 	static $count = 0;
 	$debug_string = print_r($data, true);
-	foreach( split( "\n", $debug_string ) as $line ) {
+	foreach( preg_split( '/\n/', $debug_string ) as $line ) {
 		$count++;
 		header( "X-TC-Debug-$count: $line" );
 	}

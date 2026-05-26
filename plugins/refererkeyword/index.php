@@ -146,9 +146,15 @@ function refererkeyword()
         $Filtering = preg_split("/[\s,]+/", $data['WordFiltering']);
     }
 
-    if (!empty($_POST['showURL'])) $showURL = $_POST['showURL'];
-
-    if (!empty($_POST['showKeywordlistLight'])) $limitRank = $_POST['showKeywordlistLight'];
+    // POST 값은 화이트리스트 검증 후에만 반영 — 비검증 덮어쓰기 방지
+    if (isset($_POST['showURL'])) {
+        $postShowURL = (int)$_POST['showURL'];
+        if ($postShowURL === 0 || $postShowURL === 1) $showURL = $postShowURL;
+    }
+    if (isset($_POST['showKeywordlistLight'])) {
+        $postLimitRank = (int)$_POST['showKeywordlistLight'];
+        if (in_array($postLimitRank, [5, 10, 15, 3939], true)) $limitRank = $postLimitRank;
+    }
 
 
     $refereres = Statistics::getRefererLogs();
@@ -388,22 +394,26 @@ function refererkeyword()
                 </tr>
                 <?php if ($showURL == 1) {
                     $j = 0;
-                    foreach (array_unique($RefererURLthiskeyword) as $splitRefererURL) {
-                        $urlClassName = ($j == sizeof(array_unique($RefererURLthiskeyword)) - 1) ? '' : 'noBorderBottom';
-                        list (, $decodeURL) = bringSearchWord($splitRefererURL);
+                    $uniqueRefererURLs = array_unique($RefererURLthiskeyword);
+                    foreach ($uniqueRefererURLs as $splitRefererURL) {
+                        $urlClassName = ($j == count($uniqueRefererURLs) - 1) ? '' : 'noBorderBottom';
+                        // $originalHost 를 전달해야 bringSearchWord 내 Google Images 경로가 정상 동작함
+                        $splitHost = parse_url($splitRefererURL, PHP_URL_HOST) ?: '';
+                        list (, $decodeURL) = bringSearchWord($splitRefererURL, $splitHost);
+                        // javascript:/vbscript:/data: 프로토콜 href 사용 금지 — Stored XSS 방어
+                        $safeHref = preg_match('/^https?:\/\//i', ltrim($splitRefererURL))
+                            ? Misc::escapeJSInAttribute($splitRefererURL)
+                            : '#';
                         ?>
                         <tr>
-                        <td class="<?php echo $urlClassName; ?>"></td>
-                        <td class="<?php echo $urlClassName; ?>"></td>
-                        <td class="refererurl">
+                            <td class="<?php echo $urlClassName; ?>"></td>
+                            <td class="<?php echo $urlClassName; ?>"></td>
+                            <td class="refererurl"><a href="<?php echo $safeHref; ?>" onclick="window.open(this.href); return false;"><?php echo UTF8::lessenAsEm(htmlspecialchars($decodeURL ?: $splitRefererURL), 90); ?></a></td>
+                        </tr>
                         <?php
-                        echo "<a href=\"" . Misc::escapeJSInAttribute($splitRefererURL) . "\" onclick=\"window.open(this.href); return false;\">" . UTF8::lessenAsEm(htmlspecialchars($decodeURL), 90) . "</a>";
                         $j++;
                     }
-
                 } ?>
-                </td>
-                </tr>
             <?php
             }
             ?>

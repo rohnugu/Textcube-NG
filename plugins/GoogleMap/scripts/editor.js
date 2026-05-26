@@ -23,9 +23,10 @@ window.GMapTool_attachLocation = function() {
 			.empty().append('<p style="text-align:center"><img src="' + pluginURL + '/images/icon_loading.gif" style="vertical-align:middle" />&nbsp;Loading...</p>');
 			$('#googlemap-geolocation-container').css({'top': parseInt(offset.top + height), 'left': parseInt(offset.left - 75)}).show();
 			navigator.geolocation.getCurrentPosition(function(pos) {
+				var staticSrc = 'https://maps.googleapis.com/maps/api/staticmap?center=' + pos.coords.latitude + ',' + pos.coords.longitude + '&zoom=12&size=240x160&maptype=roadmap&markers=color:red|' + pos.coords.latitude + ',' + pos.coords.longitude + (gMapApiKey ? '&key=' + encodeURIComponent(gMapApiKey) : '');
 				$('#googlemap-geolocation-preview')
 				.empty().append($('<a>').attr('id', 'googlemap-geolocation-preview-close').attr('href', '#close').text('close'))
-				.append($('<img>').attr('src', 'http://maps.google.com/maps/api/staticmap?center=' + pos.coords.latitude + ',' + pos.coords.longitude + '&zoom=12&size=240x160&maptype=roadmap&sensor=true&markers=color:red|' + pos.coords.latitude + ',' + pos.coords.longitude));
+				.append($('<img>').attr('src', staticSrc));
 				$('input[name=latitude]').val(pos.coords.latitude);
 				$('input[name=longitude]').val(pos.coords.longitude);
 				$('#googlemap-geolocation-preview-close').click(function(e) {

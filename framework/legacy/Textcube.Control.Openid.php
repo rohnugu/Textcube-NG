@@ -17,66 +17,9 @@ if( !file_exists("/dev/urandom") ) {
 }
 
 include_once OPENID_LIBRARY_ROOT."Auth/Yadis/XML.php";
-include_once XPATH_LIBRARY_ROOT."XPath.class.php";
-
-class Auth_Textcube_xmlparser extends XPath
-{
-	function Auth_Textcube_xmlparser()
-	{
-		$this->ns = array();
-        $xmlOptions = array(XML_OPTION_CASE_FOLDING => false, XML_OPTION_SKIP_WHITE => TRUE);
-        parent::XPath( FALSE, $xmlOptions );
-        $this->bDebugXmlParse = false;
-    }
-
-    function init($xml_string, $namespace_map)
-    {
-        foreach ($namespace_map as $prefix => $uri) {
-            if (!$this->registerNamespace($prefix, $uri)) {
-                return false;
-            }
-        }
-        if (!$this->setXML($xml_string)) {
-            return false;
-        }
-
-        return true;
-    }
-
-    function setXML($xml_string)
-    {
-    	return $this->importFromString( $xml_string );
-    }
-
-    function evalXPath($xpath, $node = null)
-    {
-    	if( $xpath[0] != '/' ) { $xpath = "//$xpath"; }
-    	$nodes = $this->evaluate($xpath);
-    	$return_nodes = array();
-    	foreach( $nodes as $n ) {
-    		$node = $this->nodeIndex[$n];
-    		$node['text'] = join( '', $node['textParts'] );
-    		$return_nodes[] = $node;
-    	}
-    	return $return_nodes;
-    }
-
-    function content($node)
-    {
-		return $node['text'];
-    }
-
-    function attributes($node)
-    {
-        if (isset($node['attributes'])) {
-				return $node['attributes'];
-        }
-		return null;
-    }
-}
 
 class OpenID {
-	function setCookie( $key, $value )
+	public static function setCookie( $key, $value )
 	{
 		$context = Model_Context::getInstance();
 		$session_cookie_path = "/";
@@ -89,7 +32,7 @@ class OpenID {
 		}
 	}
 
-	function clearCookie( $key )
+	public static function clearCookie( $key )
 	{
 		$context = Model_Context::getInstance();
 		$session_cookie_path = "/";
@@ -104,7 +47,7 @@ class OpenID {
 
 	function getDisplayName( $openid )
 	{
-		$s = split( '#', $openid );
+		$s = explode( '#', $openid );
 		$openid = $s[0];
 		if( strlen($openid) > 40 ) {
 			$openid = substr($openid,0,36) . "...";
@@ -114,8 +57,9 @@ class OpenID {
 
 }
 
+#[AllowDynamicProperties]
 class OpenIDSession {
-	function OpenIDSession($tid) {
+	function __construct($tid) {
 		$this->pickle_key = $tid;
 	}
 
@@ -150,6 +94,7 @@ class OpenIDSession {
     }
 }
 
+#[AllowDynamicProperties]
 class OpenIDConsumer extends OpenID {
 	function __construct($tid = null) {
 		require_once OPENID_LIBRARY_ROOT."Auth/OpenID/Consumer.php";
@@ -325,7 +270,7 @@ class OpenIDConsumer extends OpenID {
 
 	function printErrorReturn( $msg, $location )
 	{
-		$query = split( '\?', $location );
+		$query = explode( '?', $location );
 		$query = array_pop($query);
 		parse_str($query,$args);
 		if( !empty($args['tid']) ) {
@@ -337,9 +282,11 @@ class OpenIDConsumer extends OpenID {
 		} else {
 			header("HTTP/1.0 200 OK");
 			header("Content-type: text/html");
-			print "<html><head><meta http-equiv='Content-Type' content='text/html; charset=utf-8' /></head><body><script type='text/javascript'>//<![CDATA[" . CRLF . "alert('$msg');";
+			$safeMsg      = json_encode($msg);
+			$safeLocation = json_encode($location);
+			print "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /></head><body><script type=\"text/javascript\">//<![CDATA[" . CRLF . "alert($safeMsg);";
 			if( $location ) {
-				print "document.location.href='$location';";
+				print "document.location.href=$safeLocation;";
 			}
 			print "//]]>" . CRLF . "</script></body></html>";
 		}
@@ -377,14 +324,14 @@ class OpenIDConsumer extends OpenID {
 		$_SESSION['openid']['homepage'] = $homepage;
 	}
 
-	function logout()
+	public static function logout()
 	{
 		Acl::authorize('openid', null );
 		OpenID::setCookie( 'openid_auto', 'n' );
 		OpenIDConsumer::clearUserInfo();
 	}
 
-	function clearUserInfo()
+	public static function clearUserInfo()
 	{
 		unset( $_SESSION['openid'] );
 	}

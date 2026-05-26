@@ -32,12 +32,12 @@ function SB_Spacer($target)
 	} else {
 		$height = '20';
 	}
-	$text = '<div class="SB_Spacer" style="height:'.$height.'px;"></div>';
+	$text = '<div class="SB_Spacer" style="height:'.(int)$height.'px;"></div>';
 	return $text;
 }
 
 function SB_Spacer_DataSet($data){
-	if(!is_integer(intval($data['height']))) return false;
+	if(!is_numeric($data['height']) || (int)$data['height'] < 0 || (int)$data['height'] > 2000) return false;
 	return true;
 }
 ?>

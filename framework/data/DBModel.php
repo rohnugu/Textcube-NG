@@ -34,8 +34,9 @@ function doesExistTable($tablename) {
 /* 1.7.2.20141105 */
 class DBModel extends Singleton implements IModel {
 	protected $_attributes, $_qualifiers, $_query;
-	protected $_relations, $_glues, $_filters, $_order, $_limitation, $table, $id, $_querysetCount;
-	protected $_reservedFields, $_isReserved, $param;
+	protected $_relations, $_glues, $_filters, $_order, $_limit, $table, $id, $_querysetCount;
+	protected $_reservedFields, $_reservedFunctions, $_isReserved, $param;
+	protected $context;
 
 	function __construct($table = null) {
 		$this->context = Model_Context::getInstance();

@@ -22,7 +22,7 @@ class FieldArrow {
     var $iColor='black';
     var $isizespec = array(
 	array(2,1),array(3,2),array(4,3),array(6,4),array(7,4),array(8,5),array(10,6),array(12,7),array(16,8),array(20,10));
-    function FieldArrow() {
+function __construct() {
     }
 
     function SetSize($aSize,$aArrowSize=2) {
@@ -58,10 +58,11 @@ class FieldArrow {
 // CLASS FieldPlot
 // Description: Render a field plot
 //===================================================
+#[AllowDynamicProperties]
 class FieldPlot extends Plot {
     var $iAngles;
     var $iCallback='';
-    function FieldPlot($datay,$datax,$angles) {
+function __construct($datay,$datax,$angles) {
 	if( (count($datax) != count($datay)) )
 	    JpGraphError::Raise("Fieldplots must have equal number of X and Y points.");
 	if( (count($datax) != count($angles)) )
@@ -69,7 +70,7 @@ class FieldPlot extends Plot {
 	
 	$this->iAngles = $angles;
 
-	$this->Plot($datay,$datax);
+	parent::__construct($datay,$datax);
 	$this->value->SetAlign('center','center');
 	$this->value->SetMargin(15);
 
@@ -125,15 +126,16 @@ class FieldPlot extends Plot {
 // CLASS ScatterPlot
 // Description: Render X and Y plots
 //===================================================
+#[AllowDynamicProperties]
 class ScatterPlot extends Plot {
     var $impuls = false;
     var $linkpoints = false, $linkpointweight=1, $linkpointcolor="black";
 //---------------
 // CONSTRUCTOR
-    function ScatterPlot($datay,$datax=false) {
+function __construct($datay,$datax=false) {
 	if( (count($datax) != count($datay)) && is_array($datax))
 	    JpGraphError::Raise("Scatterplot must have equal number of X and Y points.");
-	$this->Plot($datay,$datax);
+	parent::__construct($datay,$datax);
 	$this->mark = new PlotMark();
 	$this->mark->SetType(MARK_SQUARE);
 	$this->mark->SetColor($this->color);

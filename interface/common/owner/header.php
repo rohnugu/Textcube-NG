@@ -340,6 +340,7 @@ include ROOT . '/resources/locale/messages.php';
 	<script type="text/javascript" src="<?php echo $service['path'];?>/resources/script/EAF4.js"></script>
 	<script type="text/javascript" src="<?php echo $service['path'];?>/resources/script/common3.js"></script>
 	<script type="text/javascript" src="<?php echo $service['path'];?>/resources/script/owner.js"></script>
+	<script type="text/javascript" src="<?php echo $service['path'];?>/resources/script/orphan-check.js"></script>
 <?php
 if(!in_array($blogMenu['contentMenu'],array('post','edit'))) {
 ?>

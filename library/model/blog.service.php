@@ -2,6 +2,14 @@
 /// Copyright (c) 2004-2016, Needlworks  / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice (GPL §2(a)) ----
+/// Modified 2026 by @deokio for PHP 8.5 compatibility,
+/// performed with AI assistance (Anthropic Claude) under human review.
+/// Changes consist primarily of mechanical PHP migration transformations
+/// per the official PHP upgrade documentation.
+/// No additional copyright is asserted over these modifications.
+/// See CHANGELOG.md and SECURITY.md for full modification history.
 
 // for Global Cache
 $__gCacheBlogSettings = array();
@@ -61,7 +69,7 @@ function getBlogURL($name = null, $domain = null, $path = null, $type = null) {
 		$name = $context->getProperty('blog.name');
 	switch ($type) {
 		case 'domain':
-			return $prefix.$name.$domain.$path;
+			return $prefix . ($name !== '' ? $name . '.' : '') . $domain . $path;
 		case 'path':
 			return $prefix.$domain.$path.'/'.$name;
 		case 'single':default:

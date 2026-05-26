@@ -454,7 +454,7 @@
 
 #part-skin-setting .section .button-box
 {
-	clear                            : both;
+	grid-column                      : 1 / -1;
 	padding-bottom                   : 30px;
 }
 
@@ -471,42 +471,66 @@
 	vertical-align                   : middle;
 }
 
-#per-page-container
+/* Grid container – replaces float-based 3-column layout */
+#skinSetting
 {
-	float                            : right;
+	display                          : grid;
+	grid-template-columns            : 1fr 1fr 1fr;
+	align-items                      : start;
+	column-gap                       : 10px;
+	row-gap                          : 16px;
 }
 
-#click-container
+#part-skin-setting fieldset.container
 {
-	display                          : block;
-	float                            : left;
+	float                            : none;
+	clear                            : none;
+	width                            : auto;
+	margin-left                      : 0;
+	box-sizing                       : border-box;
 }
+
+/* Desktop 3-column explicit placement */
+#click-container             { grid-column: 1; grid-row: 1 / span 3; align-self: start; }
+#length-container            { grid-column: 2; grid-row: 1; }
+#advanced-setting-container  { grid-column: 2; grid-row: 2; }
+#tag-setting-container       { grid-column: 2; grid-row: 3; }
+#per-page-container          { grid-column: 3; grid-row: 1; }
+#guestbook-setting-container { grid-column: 3; grid-row: 2; }
 
 #click-container dd
 {
 	line-height                      : 1.4em !important;
 }
 
-#length-container
+/* Responsive: collapse to single column */
+@media screen and (max-width: 1100px)
 {
-	float                            : right;
-	margin-left                      : 22px;
-}
+	#skinSetting
+	{
+		grid-template-columns        : 1fr;
+	}
 
-#tag-setting-container
-{
-	float                            : right;
-}
+	#click-container,
+	#per-page-container,
+	#guestbook-setting-container,
+	#length-container,
+	#advanced-setting-container,
+	#tag-setting-container
+	{
+		grid-column                  : 1;
+		grid-row                     : auto;
+	}
 
-#guestbook-setting-container
-{
-	float                            : left;
-}
+	/* 단일 컬럼 적층 순서: 클릭설정 → 출력수(글+방명록) → 길이 → 확장/태그 */
+	#click-container             { order: 1; }
+	#per-page-container          { order: 2; }
+	#guestbook-setting-container { order: 3; }
+	#length-container            { order: 4; }
+	#advanced-setting-container  { order: 5; }
+	#tag-setting-container       { order: 6; }
 
-#advanced-setting-container
-{
-	float                            : right;
-	margin-left                      : 22px;
+	#part-skin-setting .section .button-box { order: 99; }
 }
 
 
@@ -1279,6 +1303,13 @@
 	font-size                        : 12px;
 	padding                          : 20px;
 	width                            : 40%;
+	position                         : fixed !important;
+	top                              : 50% !important;
+	left                             : 50% !important;
+	-webkit-transform                : translate(-50%, -50%) !important;
+	transform                        : translate(-50%, -50%) !important;
+	margin                           : 0 !important;
+	box-sizing                       : border-box;
 }
 
 .ajax-popup-window form

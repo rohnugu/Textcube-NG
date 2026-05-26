@@ -29,4 +29,25 @@ function AddRSD($target)
 	$target .= '<link rel="EditURI" type="application/rsd+xml" title="RSD" href="'.$hostURL.$blogURL.'/api?rsd" />'.CRLF;
 	return $target;
 }
+
+// 플러그인 설정 탭에 OLW 연결 정보를 표시하기 위한 manifestHandler.
+// handleConfig() 가 이 함수를 호출하고, 반환된 XML 을 파싱해 설정 폼으로 렌더링한다.
+// URL 은 블로그 설정에 의해 자동 결정되므로 편집 불가 — 빈 fieldset legend 로 읽기 전용 표시.
+function BlogAPI_ConfigHandler($plugin)
+{
+	global $hostURL, $blogURL;
+	$apiUrl = htmlspecialchars($hostURL . $blogURL . '/api', ENT_QUOTES, 'UTF-8');
+	$rsdUrl = htmlspecialchars($hostURL . $blogURL . '/api?rsd', ENT_QUOTES, 'UTF-8');
+	return '<?xml version="1.0" encoding="utf-8"?>'
+		. '<config>'
+		. '<fieldset legend="Open Live Writer 연결 설정 (읽기 전용 — 블로그 URL 에 의해 자동 결정)">'
+		. '</fieldset>'
+		. '<fieldset legend="API 주소 : ' . $apiUrl . '">'
+		. '</fieldset>'
+		. '<fieldset legend="RSD 주소 : ' . $rsdUrl . '">'
+		. '</fieldset>'
+		. '<fieldset legend="블로그 종류 : Movable Type API 또는 Metaweblog API / 사용자명·비밀번호 : 블로그 관리자 계정">'
+		. '</fieldset>'
+		. '</config>';
+}
 ?>

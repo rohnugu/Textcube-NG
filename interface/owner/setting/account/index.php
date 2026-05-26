@@ -430,9 +430,9 @@ if(!empty($blogs)) {
 ?>
 												<select id="blogid-list" name="blogid">
 <?php
-	foreach ($blogs as $blog) {
+	foreach ($blogs as $blogId) {
 ?>
-													<option value="<?php echo $blog;?>" <?php if ($blog == $blogidforhomepage) echo "selected = selected"?>><?php echo getBlogName($blog);?></option>
+													<option value="<?php echo $blogId;?>" <?php if ($blogId == $blogidforhomepage) echo "selected = selected"?>><?php echo getBlogName($blogId);?></option>
 <?php
 }
 ?>
@@ -569,7 +569,8 @@ if( isActivePlugin( 'CL_OpenID' ) || Acl::check('group.administrators') ) {
 			if( $openid_identity == $currentDelegate ) {
 				$selected = "selected";
 			}
-			print "<option value='$openid_identity' $selected>" . $openid_identity . "</option>";
+			$safeId = htmlspecialchars($openid_identity, ENT_QUOTES, 'UTF-8');
+			print '<option value="' . $safeId . '" ' . $selected . '>' . $safeId . '</option>';
 		}
 ?>
 												</select>

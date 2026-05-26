@@ -48,14 +48,23 @@ $conditions['linesforpage'] = 15;
 $d = _t('삭제');
 
 $conditions['template'] = <<<EOS
-			<dl id="line_[##_id_##]" class="line">
+			<dl id="line_[##_id_##]" class="line [##_category_##]" data-category="[##_category_##]">
 				<dt class="date">[##_date_##]</dt>
 				<dd class="content">[##_content_##]</dd>
 				<dd class="permalink"><a href="[##_permalink_##]" class="permalink">at [##_root_##]</a></dd>
+				<dd class="toggle" onclick="toggleLineCategory('[##_id_##]', this);return false;"><span class="text">[##_category_toggle_label_##]</span></dd>
 				<dd class="delete input-button" onclick="deleteLine('[##_id_##]');return false;"><span class="text">{$d}</span></dd>
 			</dl>
 EOS;
-$conditions['dress'] = array('id'=>'id','date'=>'created','content'=>'content','permalink'=>'permalink','root'=>'root');
+$conditions['dress'] = array(
+	'id'                    => 'id',
+	'date'                  => 'created',
+	'content'               => 'content',
+	'permalink'             => 'permalink',
+	'root'                  => 'root',
+	'category'              => 'category',
+	'category_toggle_label' => 'category_toggle_label'
+);
 $line = Model_Line::getInstance();
 $view = $line->getFormattedList($conditions);
 $m = _t('더 보기');
@@ -82,6 +91,28 @@ EOS
 								request.send("id="+id);
 							}
 							
+							function toggleLineCategory(id, btn) {
+								var dl = document.getElementById("line_" + id);
+								var currentCat = dl ? dl.getAttribute("data-category") : "public";
+								var newCat = (currentCat === "public") ? "private" : "public";
+								var request = new HTTPRequest("POST","<?php echo $blogURL;?>/owner/entry/line/updateCategory/");
+								request.onSuccess = function () {
+									PM.removeRequest(this);
+									if (dl) {
+										dl.setAttribute("data-category", newCat);
+										dl.className = dl.className.replace(/\bpublic\b|\bprivate\b/, newCat);
+									}
+									btn.querySelector("span.text").textContent = (newCat === "public") ? "<?php echo _t('비공개로'); ?>" : "<?php echo _t('공개로'); ?>";
+									PM.showMessage("<?php echo _t('공개 설정이 변경되었습니다.'); ?>", "center", "bottom");
+								}
+								request.onError = function () {
+									PM.removeRequest(this);
+									alert("<?php echo _t('공개 설정을 변경할 수 없었습니다.'); ?>");
+								}
+								PM.addRequest(request, "<?php echo _t('변경 중입니다.'); ?>");
+								request.send("id=" + id + "&category=" + newCat);
+							}
+
 							function getMoreContent(page,lines,mode) {
 								var request = new HTTPRequest("POST","<?php echo $blogURL;?>/owner/entry/line/more/");
 								request.onSuccess = function () {
@@ -140,6 +171,24 @@ EOS
 							}
 							//]]>
 						</script>
+						<style type="text/css">
+							#line-content dd.toggle {
+								position: absolute;
+								top: 13px;
+								right: 36px;
+								margin: 0;
+								padding: 1px 5px;
+								border: 1px solid #ccc;
+								border-radius: 3px;
+								background: #f5f5f5;
+								font-size: 11px;
+								color: #555;
+								cursor: pointer;
+								width: auto !important;
+								height: auto !important;
+								line-height: 18px;
+							}
+						</style>
 
 						<div id="part-post-line" class="part">
 							<h2 class="caption"><span class="main-text"><?php echo _t('라인을 관리합니다');?></span></h2>
