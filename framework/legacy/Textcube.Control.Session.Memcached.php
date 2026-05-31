@@ -215,7 +215,7 @@ final class Session {
 				if ($encodedData !== false) {
 					self::$mc->set(self::$context->getProperty('service.domain')."/sessions/{$id}", $encodedData, 0, self::$context->getProperty('service.timeout'));
 				}
-				setcookie( self::getName(), $id, 0, $session_cookie_path, self::$context->getProperty('service.session_cookie_domain'));
+				setcookie( self::getName(), $id, array('expires' => 0, 'path' => $session_cookie_path, 'domain' => self::$context->getProperty('service.session_cookie_domain'), 'secure' => (bool)self::$context->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 				return true;
 			}
 		}

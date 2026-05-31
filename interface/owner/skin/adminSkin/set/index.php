@@ -10,6 +10,7 @@ $IV = array(
 );
 
 require ROOT . '/library/preprocessor.php';
+requireStrictRoute();
 
 if (empty($_POST['adminSkin']) || !file_exists(ROOT."/skin/admin/{$_POST['adminSkin']}/index.xml") || !Setting::setBlogSettingGlobal("adminSkin", $_POST['adminSkin']))
 	Respond::ResultPage(false);

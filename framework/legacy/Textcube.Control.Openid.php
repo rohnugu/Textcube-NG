@@ -2,21 +2,15 @@
 /// Copyright (c) 2004-2007, Needlworks / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
-
-$path_extra = dirname(__FILE__);
-$path = ini_get('include_path');
-
-if( !isset( $_ENV['OS'] ) || strstr( $_ENV['OS'], 'Windows' ) === false ) {
-	$path .= ':' . OPENID_LIBRARY_ROOT . ':' . $path_extra;
-} else {
-	$path .= ';' . OPENID_LIBRARY_ROOT . ';' . $path_extra;
-}
-ini_set('include_path', $path);
-if( !file_exists("/dev/urandom") ) { 
-	define('Auth_OpenID_RAND_SOURCE', null);
-}
-
-include_once OPENID_LIBRARY_ROOT."Auth/Yadis/XML.php";
+///
+/// ---- Modification Notice ----
+/// OpenID 2.0 (protocol EOL — 주요 Provider 가 2015 년경 지원 종료) 제거.
+/// 인증은 OpenID Connect(OIDC, Textcube.Control.OIDC.php)로 일원화한다.
+/// phpopenid(library/contrib/phpopenid) 의존과 Yadis/Consumer/Transaction 기반 2.0 인증 흐름
+///   (fetch/tryAuth/finishAuth/setAcl/update/setDelegate/setComment 등)을 모두 제거하고,
+///   OIDC 흐름과 댓글 표시가 공유하는 경량 헬퍼만 남긴다.
+/// 모든 헬퍼를 static 으로 통일한다 — 기존 코드는 non-static 메서드를 정적(::)으로 호출했고,
+///   이는 PHP 8 에서 치명적 오류이므로 호출 형태와 정의를 일치시킨다.
 
 class OpenID {
 	public static function setCookie( $key, $value )
@@ -28,7 +22,7 @@ class OpenID {
 			$session_cookie_path = $context->getProperty('service.session_cookie_path');
 		}
 		if( !headers_sent() ) {
-			setcookie( $key, $value, time()+3600*24*30, $session_cookie_path );
+			setcookie( $key, $value, array('expires' => time()+3600*24*30, 'path' => $session_cookie_path, 'secure' => (bool)$context->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 		}
 	}
 
@@ -41,12 +35,20 @@ class OpenID {
 			$session_cookie_path = $context->getProperty('service.session_cookie_path');
 		}
 		if( !headers_sent() ) {
-			setcookie( $key, '', time()-3600, $session_cookie_path );
+			setcookie( $key, '', array('expires' => time()-3600, 'path' => $session_cookie_path, 'secure' => (bool)$context->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 		}
 	}
 
-	function getDisplayName( $openid )
+	public static function getDisplayName( $openid )
 	{
+		// OIDC 신원(oidc:{iss}#{sub})은 issuer 만 표시한다(식별자 원문 노출 방지).
+		if( strpos($openid, 'oidc:') === 0 ) {
+			$issuer = substr($openid, 5);
+			$hash = strpos($issuer, '#');
+			if( $hash !== false ) { $issuer = substr($issuer, 0, $hash); }
+			if( strlen($issuer) > 40 ) { $issuer = substr($issuer, 0, 36) . "..."; }
+			return $issuer;
+		}
 		$s = explode( '#', $openid );
 		$openid = $s[0];
 		if( strlen($openid) > 40 ) {
@@ -54,281 +56,17 @@ class OpenID {
 		}
 		return $openid;
 	}
-
 }
 
-#[AllowDynamicProperties]
-class OpenIDSession {
-	function __construct($tid) {
-		$this->pickle_key = $tid;
-	}
-
-    function set($name, $value)
-    {
-		$tr = Transaction::taste( $this->pickle_key );
-        $tr[$name] = $value;
-		Transaction::repickle( $this->pickle_key, $tr );
-    }
-
-    function get($name, $default=null)
-    {
-		$tr = Transaction::taste( $this->pickle_key );
-        if (array_key_exists($name, $tr)) {
-            return $tr[$name];
-        } else {
-            return $default;
-        }
-    }
-
-    function del($name)
-    {
-		$tr = Transaction::taste( $this->pickle_key );
-        unset($tr[$name]);
-		Transaction::repickle( $this->pickle_key, $tr );
-    }
-
-    function contents()
-    {
-		$tr = Transaction::taste( $this->pickle_key );
-        return $tr;
-    }
-}
-
-#[AllowDynamicProperties]
+/// 과거 OpenID 2.0 컨슈머. 2.0 프로토콜 구현은 제거되었고, OIDC 흐름/댓글 처리와 공유하는
+/// 정적 헬퍼(세션 표시정보·로그아웃·에러 출력·리다이렉트)만 유지한다. OpenID 헬퍼를 상속한다.
 class OpenIDConsumer extends OpenID {
-	function __construct($tid = null) {
-		require_once OPENID_LIBRARY_ROOT."Auth/OpenID/Consumer.php";
-		require_once OPENID_LIBRARY_ROOT."Auth/OpenID/FileStore.php";
-		require_once OPENID_LIBRARY_ROOT."Auth/OpenID/SReg.php";
-		require_once OPENID_LIBRARY_ROOT."Auth/OpenID/AX.php";
-
-		$store_path = __TEXTCUBE_CACHE_DIR__."/openidstore";
-
-		if (!file_exists($store_path) &&
-			!mkdir($store_path)) {
-			print "Could not create the FileStore directory '$store_path'. ".
-				" Please check the effective permissions.";
-			exit(0);
-		} else if( false == fopen( $store_path."/check", "w" ) ) {
-			print "Could not create a file on the FileStore directory '$store_path'. ".
-				" Please check the effective permissions.";
-			exit(0);
-		}
-		unlink( $store_path."/check" );
-
-		$store = new Auth_OpenID_FileStore($store_path);
-
-		/**
-		 * Create a consumer object using the store object created earlier.
-		 */
-		if( $tid ) {
-			$this->session = new OpenIDSession( $tid );
-		} else {
-			$this->session = null;
-		}
-
-		$this->consumer = new Auth_OpenID_Consumer($store, $this->session );
-	}
-
-	function fetch( $openid )
-	{
-		ob_start();
-		$auth_request = $this->consumer->begin($openid);
-		ob_end_clean();
-		return $auth_request->endpoint->claimed_id;
-	}
-
-	function fetchXRDSUri( $openid )
-	{
-		global $TextCubeLastXRDSUri, $TextCubeDoNotUseAcceptHeader;
-		$TextCubeLastXRDSUri = '';
-		$TextCubeDoNotUseAcceptHeader = true;
-
-		ob_start();
-		$auth_request = $this->consumer->begin($openid);
-		ob_end_clean();
-
-		if (!$auth_request) {
-			return array( '', '', '' );
-		}
-
-		if( $auth_request->endpoint->local_id ) {
-			$IdPIdentity = $auth_request->endpoint->local_id; 
-		} else {
-			$IdPIdentity = $auth_request->endpoint->claimed_id; 
-		}
-		return array( 
-			$IdPIdentity,
-			$auth_request->endpoint->server_url, 
-			$TextCubeLastXRDSUri );
-	}
-
-	function tryAuth( $tid, $openid, $remember_openid = null )
-	{
-		$context = Model_Context::getInstance();
-		$trust_root = $context->getProperty('uri.host'). "/";
-		ob_start();
-		$auth_request = $this->consumer->begin($openid);
-		ob_end_clean();
-
-		// Handle failure status return values.
-		if (!$auth_request) {
-			return $this->_redirectWithError( _text("인증하지 못하였습니다. 아이디를 확인하세요"), $tid );
-		}
-
-		if( ! $this->IsExisted( $auth_request->endpoint->claimed_id ) )
-		{
-			if( $auth_request->message->isOpenID2() ) {
-				$ax_nickname = Auth_OpenID_AX_AttrInfo::make( 'http://axschema.org/namePerson/friendly', 1, true, 'nickname' );
-				$ax_request = new Auth_OpenID_AX_FetchRequest();
-				$ax_request->add( $ax_nickname );
-				$auth_request->addExtension( $ax_request );
-			} else {
-				$sreg_request = Auth_OpenID_SRegRequest::build( null, array( 'nickname' ) );
-				$auth_request->addExtension( $sreg_request );
-			}
-		}
-
-		if( $remember_openid ) {
-				$this->setCookie( 'openid',
-						empty($auth_request->endpoint->display_identifier) ?
-						$auth_request->endpoint->claimed_id : $auth_request->endpoint->display_identifier );
-		} else {
-				$this->clearCookie( 'openid' );
-		}
-
-		$tr = Transaction::taste( $tid );
-		$finishURL = $tr['finishURL'];
-		$redirect_url = $auth_request->redirectURL($trust_root, $finishURL);
-
-		return $this->redirect( $redirect_url );
-	}
-
-	function finishAuth( $tid )
-	{
-		// Complete the authentication process using the server's response.
-		$tr = Transaction::taste($tid);
-		ob_start();
-		$response = $this->consumer->complete($tr['finishURL']);
-		ob_end_clean();
-
-		$msg = '';
-		if( $response->status == Auth_OpenID_CANCEL ) {
-			// This means the authentication was cancelled.
-			$msg = _text("인증이 취소되었습니다.");
-		} else if ($response->status == Auth_OpenID_FAILURE) {
-			$msg = _text("오픈아이디 인증이 실패하였습니다: ") . $response->message;
-		} else if ($response->status == Auth_OpenID_SUCCESS) {
-			$this->openid = $response->identity_url;
-			$this->delegatedid = $response->endpoint->local_id;
-			$sreg_resp = Auth_OpenID_SRegResponse::fromSuccessResponse($response);
-			$this->sreg = $sreg_resp->contents();
-			if( !isset($this->sreg['nickname']) ) {
-				$this->sreg['nickname'] = "";
-			}
-			$msg = '';
-			if( empty($tr['authenticate_only']) ) {
-				$this->setAcl( $this->openid );
-				$this->update( $this->openid, $this->delegatedid, $this->sreg['nickname'] );
-				if( !empty($tr['need_writers']) ) {
-					if( !Acl::check( 'group.writers') ) {
-						$msg = _text("관리자 권한이 없는 오픈아이디 입니다") . " : " . $this->openid;
-					}
-				}
-				fireEvent( "AfterOpenIDLogin", $this->openid );
-			} else {
-				Acl::authorize('openid_temp', $this->openid);
-			}
-		}
-
-		return $msg ? $this->_redirectWithError( $msg, $tid ) : $this->_redirectWithSucess( $tid );
-	}
-
-	function _redirectWithError($msg, $tid)
-	{
-		$tr = Transaction::unpickle( $tid );
-		$requestURI = $tr['requestURI'];
-		if( !empty($tr['authenticate_only']) ) {
-			$requestURI .= (strchr($requestURI,'?')===false ? "?":"&" ) . "authenticated=0";
-		} else {
-			$this->setCookie( 'openid_auto', 'n' );
-		}
-		$this->printErrorReturn( $msg, $requestURI );
-	}
-
-	function _redirectWithSucess($tid)
-	{
-		$tr = Transaction::unpickle( $tid );
-		$requestURI = $tr['requestURI'];
-		if( !empty($tr['authenticate_only']) ) {
-			$requestURI .= (strchr($requestURI,'?')===false ? "?":"&" ) . "authenticated=1";
-		} else {
-			$this->setCookie( 'openid_auto', 'y' );
-		}
-		$this->redirect( $requestURI );
-	}
-
-	function printErrorReturn( $msg, $location )
-	{
-		$query = explode( '?', $location );
-		$query = array_pop($query);
-		parse_str($query,$args);
-		if( !empty($args['tid']) ) {
-			$tid = $args['tid'];
-			$tr = Transaction::taste($tid);
-			$tr['openid_errormsg'] = $msg;
-			Transaction::repickle($tid,$tr);
-			header( "Location: $location" );
-		} else {
-			header("HTTP/1.0 200 OK");
-			header("Content-type: text/html");
-			$safeMsg      = json_encode($msg);
-			$safeLocation = json_encode($location);
-			print "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /></head><body><script type=\"text/javascript\">//<![CDATA[" . CRLF . "alert($safeMsg);";
-			if( $location ) {
-				print "document.location.href=$safeLocation;";
-			}
-			print "//]]>" . CRLF . "</script></body></html>";
-		}
-		exit(0);
-	}
-
-	function redirect( $location )
-	{
-		header("HTTP/1.0 302 Moved Temporarily");
-		header("Location: $location");
-		print( "<html><body></body></html>" );
-		exit(0);
-	}
-
-	function isExisted($openid)
-	{
-		$context = Model_Context::getInstance();
-		$pool = DBModel::getInstance();
-		$pool->reset('OpenIDUsers');
-		$pool->setQualifier('blogid','equals',intval($context->getProperty('blog.id')));
-		$pool->setQualifier('openid','equals',$openid,true);
-		$result = $pool->getCell('openid');
-		if (is_null($result)) {
-			return false;
-		}
-		return true;
-	}
-
-	function setUserInfo( $nickname, $homepage )
-	{
-		if( !isset( $_SESSION['openid'] ) ) {
-			$_SESSION['openid'] = array();
-		}
-		$_SESSION['openid']['nickname'] = $nickname;
-		$_SESSION['openid']['homepage'] = $homepage;
-	}
 
 	public static function logout()
 	{
 		Acl::authorize('openid', null );
 		OpenID::setCookie( 'openid_auto', 'n' );
-		OpenIDConsumer::clearUserInfo();
+		self::clearUserInfo();
 	}
 
 	public static function clearUserInfo()
@@ -336,153 +74,69 @@ class OpenIDConsumer extends OpenID {
 		unset( $_SESSION['openid'] );
 	}
 
-	function updateUserInfo( $nickname, $homepage )
+	public static function setUserInfo( $nickname, $homepage )
+	{
+		if( !isset( $_SESSION['openid'] ) || !is_array( $_SESSION['openid'] ) ) {
+			$_SESSION['openid'] = array();
+		}
+		$_SESSION['openid']['nickname'] = $nickname;
+		$_SESSION['openid']['homepage'] = $homepage;
+	}
+
+	/// 게스트 댓글 작성자의 표시정보 갱신. 세션을 갱신하고, 과거 OpenID 2.0 사용자(OpenIDUsers)
+	/// 레코드가 있을 때만 그 표시정보를 동기화한다. OIDC 식별자는 OpenIDUsers 레코드가 없어 no-op.
+	public static function updateUserInfo( $nickname, $homepage )
 	{
 		$openid = Acl::getIdentity( 'openid' );
 		if( empty($openid) ) {
 			return false;
 		}
-		
-		$context = Model_Context::getInstance();
-		$pool = DBModel::getInstance();
-		
-		$pool->reset('OpenIDUsers');
-		$pool->setQualifier('openid','equals',$openid,true);
-		$result = $pool->getCell('openidinfo');
-		
-		$data = unserialize( $result );
+		self::setUserInfo( $nickname, $homepage );
 
-		if( !empty($nickname) ) $data['nickname'] = $nickname;
-		if( !empty($homepage) ) $data['homepage'] = $homepage;
-		OpenIDConsumer::setUserInfo( $data['nickname'], $data['homepage'] );
-
-		$data = serialize( $data );
-		$pool->reset('OpenIDUsers');
-		$pool->setAttribute('openidinfo',$data,true);
-		$pool->setQualifier('openid','equals',$openid,true);
-		$pool->update();
-	}
-
-	function update($openid,$delegatedid,$nickname,$homepage=null)
-	{
-		$context = Model_Context::getInstance();
-		$pool = DBModel::getInstance();
-		
-		$pool->reset('OpenIDUsers');
-		$pool->setQualifier('openid','equals',$openid,true);
-		$result = $pool->getCell('openidinfo');
-
-		if (is_null($result)) {
-			$data = serialize( array( 'nickname' => $nickname, 'homepage' => $homepage ) );
-			OpenIDConsumer::setUserInfo( $nickname, $homepage );
-
-			/* Owner column is used for reference, all openid records are shared */
-			$pool->reset('OpenIDUsers');
-			$pool->setAttribute('blogid',$context->getProperty('blog.id'));
-			$pool->setAttribute('openid',$openid,true);
-			$pool->setAttribute('delegatedid',$deligatedid,true);
-			$pool->setAttribute('firstlogin',Timestamp::getUNIXTime());
-			$pool->setAttribute('lastlogin',Timestamp::getUNIXTime());
-			$pool->setAttribute('logincount',1);
-			$pool->setAttribute('openidinfo',$data,true);
-			$pool->insert();
-		} else {
-			$data = unserialize( $result );
-
-			if( !empty($nickname) ) $data['nickname'] = $nickname;
-			if( !empty($homepage) ) $data['homepage'] = $homepage;
-			OpenIDConsumer::setUserInfo( $data['nickname'], $data['homepage'] );
-
-			$data = serialize( $data );
-
-
-			$pool->reset('OpenIDUsers');
-			$pool->setQualifier('openid','equals',$openid,true);
-			$lastcount = $pool->getCell('logincount');	
-			
-			$pool->reset('OpenIDUsers');
-			$pool->setAttribute('openidinfo',$data,true);
-			$pool->setAttribute('lastlogin',Timestamp::getUNIXTime());
-			$pool->setAttribute('logincount',$lastcount + 1);
-			$pool->setQualifier('openid','equals',$openid,true);
-			$pool->update();	
-		}
-		return;
-	}
-
-	function setAcl($openid)
-	{
-		Acl::authorize('openid', $openid);
-		$pool = DBModel::getInstance();
-		$context = Model_Context::getInstance();
-		$blogid = intval($context->getProperty('blog.id'));
-		
-		$pool->reset('UserSettings');
-		$pool->setQualifier('name','like','openid.',true);
-		$pool->setQualifier('value','equals',$openid,true);
-		$pool->setOrder('userid','ASC');
-		$result = $pool->getCell('userid');
-		
-		$userid = null;
-		if( $result ) {
-			$userid = $result;
-			Acl::authorize('textcube', $userid);
-		}
-
-		if( !empty($userid) && in_array( "group.writers", Acl::getCurrentPrivilege() ) ) {
-			Session::authorize($blogid, $userid);
-		} else {
-			Session::authorize($blogid, SESSION_OPENID_USERID );
-		}
-	}
-
-	function setDelegate( $openid )
-	{
-		if( !Acl::check( array("group.creators") ) ) {
-			return false;
-		}
-		$openid_server = '';
-		$xrds_uri = '';
-		if( $openid ) {
-			list( $openid, $openid_server, $xrds_uri ) = $this->fetchXRDSUri( $openid );
-		}
-		if( Setting::setBlogSettingGlobal( "OpenIDDelegate", $openid ) && 
-			Setting::setBlogSettingGlobal( "OpenIDServer", $openid_server ) && 
-			Setting::setBlogSettingGlobal( "OpenIDXRDSUri", $xrds_uri ) ) {
+		if( !class_exists('DBModel') ) {
 			return true;
 		}
-		return false;
-	}
-
-	function setComment( $mode )
-	{
-		if( !Acl::check( array("group.administrators") ) ) {
-			return false;
-		}
-		return Setting::setBlogSettingGlobal( "AddCommentMode", empty($mode) ? '' : 'openid' );
-	}
-
-	function setOpenIDLogoDisplay( $mode )
-	{
-		if( !Acl::check( array("group.administrators") ) ) {
-			return false;
-		}
-		return Setting::setBlogSettingGlobal( "OpenIDLogoDisplay", $mode  );
-	}
-
-	function getCommentInfo($blogid,$id){
-		$context = Model_Context::getInstance();
-		$blogid = intval($context->getProperty('blog.id'));
 		$pool = DBModel::getInstance();
-		$pool->reset('Comments');
-		$pool->setQualifier('blogid','equals',$blogid);
-		$pool->setQualifier('id','equals',$id);
-		return $pool->getRow('*');
+		$pool->reset('OpenIDUsers');
+		$pool->setQualifier('openid','equals',$openid,true);
+		$result = $pool->getCell('openidinfo');
+		if( empty($result) ) {
+			return true;   // 연결된 OpenIDUsers 레코드 없음(OIDC 게스트 등) → no-op
+		}
+		$data = unserialize( $result );
+		if( !is_array($data) ) {
+			$data = array();
+		}
+		if( !empty($nickname) ) $data['nickname'] = $nickname;
+		if( !empty($homepage) ) $data['homepage'] = $homepage;
+
+		$pool->reset('OpenIDUsers');
+		$pool->setAttribute('openidinfo',serialize($data),true);
+		$pool->setQualifier('openid','equals',$openid,true);
+		$pool->update();
+		return true;
 	}
 
-	function commentFetchHint( $comment_ids, $blogid )
+	public static function printErrorReturn( $msg, $location )
 	{
-		echo "KILL ME, Where are you?"; exit;
+		header("HTTP/1.0 200 OK");
+		header("Content-type: text/html; charset=utf-8");
+		$safeMsg      = json_encode($msg);
+		$safeLocation = json_encode($location);
+		print "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /></head><body><script type=\"text/javascript\">//<![CDATA[" . CRLF . "alert($safeMsg);";
+		if( $location ) {
+			print "document.location.href=$safeLocation;";
+		}
+		print "//]]>" . CRLF . "</script></body></html>";
+		exit(0);
+	}
+
+	public static function redirect( $location )
+	{
+		header("HTTP/1.0 302 Moved Temporarily");
+		header("Location: $location");
+		print( "<html><body></body></html>" );
+		exit(0);
 	}
 }
 ?>

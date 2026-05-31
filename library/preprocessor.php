@@ -192,7 +192,7 @@ if (!defined('NO_SESSION')) {
 	Session::set();
 	session_set_save_handler( array('Session','open'), array('Session','close'), array('Session','read'), array('Session','write'), array('Session','destroy'), array('Session','gc') );
 	session_cache_expire(1);
-	session_set_cookie_params(0, '/', $context->getProperty('service.session_cookie_domain'));
+	session_set_cookie_params(array('lifetime' => 0, 'path' => '/', 'domain' => $context->getProperty('service.session_cookie_domain'), 'secure' => (bool)$context->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 	// Workaround for servers that modifies session cookie to its own way
 	$sess_cookie_params = session_get_cookie_params();
 	$context->setProperty('service.session_cookie_domain',$sess_cookie_params['domain']);

@@ -753,7 +753,7 @@ if (!file_exists(__TEXTCUBE_CACHE_DIR__.'/CHECKUP')) {
 
 							<form id="category-form-top" class="category-box" method="post" action="<?php echo $blogURL;?>/owner/entry">
 								<input type="hidden" name="page" value="<?php echo $suri['page'];?>" />
-								<input type="hidden" name="visibility" value="<?php echo $_POST['visibility'];?>" />
+								<input type="hidden" name="visibility" value="<?php echo htmlspecialchars($_POST['visibility'], ENT_QUOTES);?>" />
 								
 								<ul id="entry-tabs-box" class="tabs-box">
 									<li class="entry-post"><a href="<?php echo $blogURL;?>/owner/entry/post<?php echo (isset($_POST['category']) ? '?category='.$_POST['category'] : '')?>"><?php echo _t('새 글 쓰기');?></a></li>

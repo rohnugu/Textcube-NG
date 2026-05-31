@@ -2,16 +2,16 @@
 Textcube-NG: Brand Yourself - 개인화된 웹 퍼블리싱 플랫폼
 ==========================================================
 
-**버전**: `1.10.10+php85.r1`
+**버전**: `1.10.10+php85.r2`
 
 > ## ⚠️ 보안 공지 — 배포 전 반드시 확인하세요
 >
 > 이 fork는 Textcube 1.10.10을 PHP 8.5 호환 버전으로 이식하고
-> 여러 보안 문제를 해결했지만, **미해결 HIGH 심각도 항목이 남아 있습니다**.
+> 여러 보안 문제를 해결했지만, **한 건의 미해결 HIGH 심각도 항목(솔트 없는 MD5 비밀번호)이 남아 있습니다**.
 > 전체 목록은 [SECURITY.md](./documents/SECURITY.md)를 참조하세요. 주요 항목:
 >
 > - **비밀번호가 Salt 없는 MD5로 저장됨** (업스트림 레거시; 기존 호스팅 환경과의 단순 이식 호환성을 위해 의도적으로 유지 — 단순 마이그레이션 적용 시 기존 사용자 로그인 불가 우려)
-> - **수백 개의 내부 쿼리가 여전히 문자열 이스케이프 방식의 raw SQL을 사용** (핵심 외부 진입점은 prepared statement로 변환 완료; SECURITY.md에서 추적 중)
+> - 내부 쿼리는 문자열 이스케이프 방식의 raw SQL을 사용(prepared statement 아님). SQL Injection 방어는 **적대적 테스트로 입증**되었으며(실제 취약점 없음), prepared statement 전면 전환은 취약점이 아닌 best-practice 잔여 항목 — SECURITY.md 참조
 >
 > **추가 보안 강화 없이는 공개 운영 환경 배포를 권장하지 않습니다.**
 > 적합한 사용 환경: 로컬/내부 사용, 기존 Textcube 블로그 아카이브 접근,
@@ -66,7 +66,7 @@ Textcube-NG는 업스트림이 마지막으로 지원한 PHP 5.6에서 PHP 8.5�
 | `php7.4-Textcube-1.10.10` | PHP 7.4 | 44/44 PASS |
 | `php8.2-Textcube-1.10.10` | PHP 8.2 | 33/33 PASS |
 | `php8.4-Textcube-1.10.10` | PHP 8.4 | 33/33 PASS |
-| `Textcube-NG-1.10.10+php85.r1` *(이번 릴리즈)* | PHP 8.5 | 33/33 PASS |
+| `Textcube-NG-1.10.10+php85.r2` *(이번 릴리즈)* | PHP 8.5 | 33/33 PASS |
 
 PHP 8.4와 PHP 8.5 패키지는 동일한 코드베이스를 사용합니다 —
 PHP 8.5 대상에서는 PHP 8.4 단계 이후 추가 PHP 코드 변경이 필요하지 않았습니다.
@@ -99,16 +99,20 @@ PHP 8.4 환경에서는 PHP 8.5 패키지를 수정 없이 그대로 사용할 �
 
 | 심각도   | 미해결 | 비고 |
 |----------|--------|------|
-| HIGH     | 2      | MD5 비밀번호 해싱; 내부 쿼리 raw SQL |
-| MEDIUM   | 2      | jpgraph QPL 라이선스; OpenID 2.0 EOL |
-| LOW      | 2      | 쿠키 속성 누락; 오래된 정적 자산 |
+| HIGH     | 1      | MD5 비밀번호 해싱 (의도적 유지) |
+| MEDIUM   | 0      | jpgraph QPL · OpenID 2.0 EOL — 모두 해소 |
+| LOW      | 1      | 오래된 정적 자산 (audit 완료; 업그레이드 보류) |
 
-전체 심각도 합산 22건 해결 완료. 전체 내용은 [SECURITY.md](./documents/SECURITY.md) 참조.
+전체 심각도 합산 25건 해결 완료. 전체 내용은 [SECURITY.md](./documents/SECURITY.md) 참조.
 
 주요 미해결 항목:
 - MD5 비밀번호 해싱 (Salt 없음) — 기존 호스팅 이식 호환성을 위해 의도적으로 유지; 기존 사용자 로그인 불가 방지를 위한 신중한 마이그레이션 전략(예: 로그인 시 점진적 재해싱) 필요
-- 내부 raw SQL 쿼리 — 핵심 진입점 변환 완료; 일괄 이전 예정
-- 레거시 의존성 (phpopenid, phpxpath, jpgraph) — CVE 검토 미완료
+- 오래된 정적 자산 (jQuery 1.11.2, Lodash 2.4.1, TinyMCE 4.1.10 등) — audit 완료(인벤토리 + CVE 문서화); 동작 변경 위험(특히 커스텀 TinyMCE 플러그인 TTMLsupport/codemirror)으로 업그레이드 보류. SECURITY.md #6 참조.
+
+이번 릴리즈(r2)에서 해소:
+- **OpenID 2.0 (EOL) → OpenID Connect (OIDC)** 이중 옵트인 재구현(기본 비활성); 레거시 phpopenid(265파일) 제거
+- **jpgraph (QPL)** → 의존 없는 인라인 SVG 차트
+- **Raw SQL SQLi 방어** 적대적 테스트로 입증 — HIGH 해제(prepared statement 전면 전환은 취약점이 아닌 best-practice 잔여)
 
 ## 요구 사항 (현재 버전 — PHP 8.5 이식본)
 
@@ -160,10 +164,16 @@ IIS, Nginx (설정 문서는 있으나 현재 관리자가 직접 검증하지 �
 
 ### 테스트 범위
 
-`tc_full_test.sh`는 설치, 인증, 글·댓글·카테고리 기본 CRUD, 첨부파일 업로드,
-TTXML 가져오기/내보내기, RSS/Atom 피드, 스킨 렌더링, 기본 플러그인 로딩을 다룹니다.
+**기능 테스트** (`tc_full_test.sh`): 설치, 인증, 글·댓글·카테고리 기본 CRUD, 첨부파일 업로드,
+TTXML 가져오기/내보내기, RSS/Atom 피드, 스킨 렌더링, 기본 플러그인 로딩.
 
-**자동화 테스트 미포함**: OpenID 흐름, 트랙백 송수신, XMLRPC API,
+**보안 — 적대적** (`_sectest/`): SQL Injection(**트랙백 수신**, 글 검색, 사용자 suggest 포함),
+XSS(반사형/저장형/HTML 속성), 경로순회/LFI, CSRF(`requireStrictRoute` path-모드), OIDC 엔진
+(옵트인 게이트·JWT/JWKS 검증·신원 매핑), **XMLRPC 파서**(XXE/외부 DTD/billion laughs).
+악성 입력에 대해 생성 SQL/출력/파서 동작을 추적하는 적대적 하니스입니다.
+
+**미포함**: OIDC 실제 provider 종단 흐름(엔진은 위에서 단위 테스트되나 실제 provider 통합은 수동),
+트랙백 **송신**(아웃바운드 요청), **XMLRPC 핸들러 권한 경로**(파서 자체는 위에서 XXE/DoS 테스트됨),
 로드 이상의 개별 플러그인 기능, 대규모 성능, 동시 다중 사용자 시나리오.
 
 ## 요구 사항 (구버전)

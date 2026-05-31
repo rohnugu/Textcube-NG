@@ -1447,15 +1447,28 @@ function copyUrl(url, nest) {
 }
 
 function _legacyCopyUrl(url, nest) {
+	// 1) IE 레거시 클립보드 (window.clipboardData)
 	try {
-		window.clipboardData.setData('Text', url);
-		alert(messages["trackbackUrlCopied"]);
-	} catch(e) {
+		if (window.clipboardData) {
+			window.clipboardData.setData('Text', url);
+			alert(messages["trackbackUrlCopied"]);
+			return;
+		}
+	} catch(e) {}
+	// 2) 비 secure-context(HTTP) 현대 브라우저: 텍스트 선택 후 execCommand('copy').
+	//    execCommand 는 deprecated 이나 secure context 를 요구하지 않아 HTTP 자동복사를 복원.
+	try {
 		var s = window.getSelection();
+		s.removeAllRanges();
 		var r1 = document.createRange();
 		r1.setStartBefore(nest);
 		r1.setEndAfter(nest);
 		s.addRange(r1);
+		var ok = false;
+		try { ok = document.execCommand('copy'); } catch(e2) { ok = false; }
+		alert(ok ? messages["trackbackUrlCopied"] : messages["operationFailed"]);
+	} catch(e3) {
+		// 최후 fallback 실패 시 조용히 종료(텍스트 선택 자체가 불가한 환경)
 	}
 }
 

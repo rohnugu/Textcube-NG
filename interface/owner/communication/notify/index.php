@@ -182,8 +182,8 @@ require ROOT . '/interface/common/owner/communicationTab.php';
 
 							<form id="list-form" method="post" action="<?php echo $blogURL;?>/owner/communication/notify">
 <?php
-	if(isset($_POST['search'])) echo '								<input type="hidden" name="search" value="'.$_POST['search'].'" />'.CRLF;
-	if(isset($_POST['withSearch'])) echo '								<input type="hidden" name="withSearch" value="'.$_POST['withSearch'].'" />'.CRLF;
+	if(isset($_POST['search'])) echo '								<input type="hidden" name="search" value="'.htmlspecialchars($_POST['search'], ENT_QUOTES).'" />'.CRLF;
+	if(isset($_POST['withSearch'])) echo '								<input type="hidden" name="withSearch" value="'.htmlspecialchars($_POST['withSearch'], ENT_QUOTES).'" />'.CRLF;
 ?>
 								<table class="data-inbox" cellspacing="0" cellpadding="0">
 									<thead>

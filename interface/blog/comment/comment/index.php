@@ -28,13 +28,13 @@ if (!Setting::getBlogSettingGlobal('acceptComments',0) && !doesHaveOwnership()) 
 }
 if ((doesHaveMembership() || !empty($_POST['name'])) && !empty($_POST['comment']) && !empty($_POST['mode']) && ($_POST['mode'] == 'commit')) {
 	if (!empty($_POST['name']))
-		setcookie('guestName', $_POST['name'], time() + 2592000, "$blogURL/");
+		setcookie('guestName', $_POST['name'], array('expires' => time() + 2592000, 'path' => "$blogURL/", 'secure' => (bool)$context->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 	if (!empty($_POST['homepage']) && ($_POST['homepage'] != 'http://')) {
 		if (!preg_match('/^\s*javascript\s*:/i', $_POST['homepage'])) {
 			if (strpos($_POST['homepage'], 'http://') === 0)
-				setcookie('guestHomepage', $_POST['homepage'], time() + 2592000, "$blogURL/");
+				setcookie('guestHomepage', $_POST['homepage'], array('expires' => time() + 2592000, 'path' => "$blogURL/", 'secure' => (bool)$context->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 			else
-				setcookie('guestHomepage', 'http://' . $_POST['homepage'], time() + 2592000, "$blogURL/");
+				setcookie('guestHomepage', 'http://' . $_POST['homepage'], array('expires' => time() + 2592000, 'path' => "$blogURL/", 'secure' => (bool)$context->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 		}
 	}
 	$comment = array();

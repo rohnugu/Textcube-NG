@@ -40,7 +40,7 @@ if (!doesHaveMembership() && !doesHaveOwnership() && $userName == '') {
 	exit;
 } else {
 	if (!empty($userName)) {
-		setcookie('guestName', $userName, time() + 2592000, "$blogURL/");
+		setcookie('guestName', $userName, array('expires' => time() + 2592000, 'path' => "$blogURL/", 'secure' => (bool)$context->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 	}
 	if (!empty($userHomepage) && ($userHomepage != 'http://')) {
 		if (preg_match('/^\s*javascript\s*:/i', $userHomepage)) {
@@ -48,7 +48,7 @@ if (!doesHaveMembership() && !doesHaveOwnership() && $userName == '') {
 		} else {
 			if (strpos($userHomepage, 'http://') !== 0)
 				$userHomepage = "http://$userHomepage";
-			setcookie('guestHomepage', $userHomepage, time() + 2592000, "$blogURL/");
+			setcookie('guestHomepage', $userHomepage, array('expires' => time() + 2592000, 'path' => "$blogURL/", 'secure' => (bool)$context->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 		}
 	}
 	if( Acl::getIdentity( 'openid' ) ) {

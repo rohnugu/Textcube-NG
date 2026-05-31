@@ -26,9 +26,7 @@ if( strstr( PHP_OS, "WIN") !== false ) {
 } else {
 	define('DS', "/");
 }
-define( "OPENID_LIBRARY_ROOT", ROOT . "/library/contrib/phpopenid/" );
 define( "XPATH_LIBRARY_ROOT", ROOT . "/library/contrib/phpxpath/" );
-define( "Auth_OpenID_NO_MATH_SUPPORT", 1 );
 define( "OPENID_PASSWORD", "-OPENID-" );
 
 // Define global variable.

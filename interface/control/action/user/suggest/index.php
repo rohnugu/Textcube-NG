@@ -22,21 +22,34 @@ require ROOT . '/library/preprocessor.php';
 requireStrictRoute();
 requirePrivilege('group.creators');
 
-global $database;
-
 header('Content-type: text/javascript');
 
-$result = POD::queryAll("SELECT loginid,name FROM `{$database['prefix']}Users` WHERE name LIKE \"%".$_GET['input']."%\" or loginid LIKE \"%".$_GET['input']."%\" LIMIT 5");
+// SQL Injection 대응 (upstream refs #747, commit 9c73a64): raw 쿼리 → DBModel 빌더 전환.
+// upstream의 init()은 본 포트에 없는 신규 별칭이므로 reset()으로 적응. 본 포트의
+// getQualifierModel은 escape=null일 때 escape하지 않으므로 두 qualifier 모두 escape=true 지정.
+// 방어 검증: _sectest/suggest_sqli_test.php (악성 입력 7종 ALL PASS) — SECURITY.md 참조.
+$pool = DBModel::getInstance();
+$pool->reset("Users");
+$pool->setQualifierSet(array("name","like",$_GET['input'],true),
+	"OR",
+	array("loginid","like",$_GET['input'],true));
+$pool->setLimit(5);
+$result = $pool->getAll("loginid, name");
 if ($result) {
-	echo 'ctlUserSuggestFunction_showSuggestion("'.$_GET['id'].'","'.$_GET['cursor'].'",';
+	echo 'ctlUserSuggestFunction_showSuggestion("'.escapeJSInCData($_GET['id']).'","'.escapeJSInCData($_GET['cursor']).'",';
 	echo '"0"'; //TODO : clear
 	foreach($result as $row) {
-		echo ',"'. $row['loginid'] ." - ".$row['name'] . '"';
+		// XSS 대응: 결과 행은 control.js showSuggestion 의 innerHTML sink 으로 삽입됨.
+		// htmlspecialchars(HTML escape) 후 JS 문자열 리터럴 안전화(백슬래시·개행 escape).
+		// control.js가 &quot;를 되돌리는 설계 전제에 부합. 검증: _sectest/run_xss_innerhtml_node.js
+		$suggestRow = htmlspecialchars($row['loginid'] . " - " . $row['name'], ENT_QUOTES);
+		$suggestRow = str_replace(array("\\", "\r", "\n"), array("\\\\", "\\r", "\\n"), $suggestRow);
+		echo ',"' . $suggestRow . '"';
 	}
 	echo ');';
 }
 else {
-	echo 'ctlUserSuggestFunction_showSuggestion("'.$_GET['id'].'","'.$_GET['cursor'].'",';
+	echo 'ctlUserSuggestFunction_showSuggestion("'.escapeJSInCData($_GET['id']).'","'.escapeJSInCData($_GET['cursor']).'",';
 	echo '"-1"'; //TODO : clear
 	echo ');';
 }

@@ -11,6 +11,25 @@ if (intval(ini_get("session.auto_start")) == 1) {
 }
 if (intval(ini_get("memory_limit")) < 24)
 	@ini_set('memory_limit','24M');
+// get_magic_quotes_gpc() and set_magic_quotes_runtime() were removed in PHP 7.0.
+// Equivalent replacement: apply null-byte normalization to all superglobals,
+// preserving the original routine structure. (php.net/migration70.incompatible)
+function normalizeSuperglobalInput($value) {
+	if (is_array($value))
+		return array_map('normalizeSuperglobalInput', $value);
+	elseif (is_string($value))
+		return str_replace(chr(0), '', $value);
+	else
+		return $value;
+}
+
+$_GET     = array_map('normalizeSuperglobalInput', $_GET);
+$_POST    = array_map('normalizeSuperglobalInput', $_POST);
+$_COOKIE  = array_map('normalizeSuperglobalInput', $_COOKIE);
+$_ENV     = array_map('normalizeSuperglobalInput', $_ENV);
+//$_FILES = array_map('normalizeSuperglobalInput', $_FILES); // binary content, intentionally skipped
+$_REQUEST = array_map('normalizeSuperglobalInput', $_REQUEST);
+$_SERVER  = array_map('normalizeSuperglobalInput', $_SERVER);
 
 if (!isset($_SERVER['REQUEST_TIME']))
 	$_SERVER['REQUEST_TIME'] = time();

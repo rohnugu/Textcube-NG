@@ -21,12 +21,10 @@
   </requirements>
   <binding>
 	<listener event="Logout" handler="openid_Logout" />
-	<listener event="AddComment" handler="openid_AddComment" />
-	<listener event="AddGuestComment" handler="openid_AddComment" />
 	<listener event="ViewCommenter" handler="openid_ViewCommenter" />
 	<listener event="ViewGuestCommenter" handler="openid_ViewCommenter" />
 	<listener event="OpenIDAffiliateLinks" handler="openid_OpenIDAffiliateLinks" />
 
-	<tag name="SKIN_head_start" handler="openid_add_delegate" />
+	<config manifestHandler="CL_OpenID_ConfigHandler" />
   </binding>
 </plugin>

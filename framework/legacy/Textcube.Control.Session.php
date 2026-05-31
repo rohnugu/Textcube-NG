@@ -247,7 +247,7 @@ final class Session {
 					session_decode($currentData);
 				}
 				//$service['domain'] = $service['domain'].':8888';
-				setcookie( self::getName(), $id, 0, $session_cookie_path, self::$context->getProperty('service.session_cookie_domain'));
+				setcookie( self::getName(), $id, array('expires' => 0, 'path' => $session_cookie_path, 'domain' => self::$context->getProperty('service.session_cookie_domain'), 'secure' => (bool)self::$context->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 				return true;
 			}
 		}

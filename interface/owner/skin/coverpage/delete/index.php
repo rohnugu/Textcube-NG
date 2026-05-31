@@ -10,6 +10,7 @@ $IV = array(
 	)
 );
 require ROOT . '/library/preprocessor.php';
+requireStrictRoute();
 requireLibrary('blog.skin');
 requireModel("blog.sidebar");
 requireModel("blog.coverpage");

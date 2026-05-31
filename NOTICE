@@ -12,8 +12,9 @@ preserved unchanged in their respective file headers, as required by GPL.
 
 ------------------------------------------------------------------------
 
-Fork modifications (PHP 7.4 → 8.5 port, dependency updates,
-documentation, partial security hardening): 2026, @deokio.
+Fork modifications (PHP 7.4 → 8.5 port, dependency updates and removal,
+documentation, security hardening — including an OpenID Connect
+reimplementation replacing the EOL OpenID 2.0 stack): 2026, @deokio.
 
 Nature of the modifications:
 
@@ -33,6 +34,13 @@ Nature of the modifications:
   Such mechanical transformations would yield substantially identical
   results regardless of who or what performs them, and are not considered
   to embody original creative authorship.
+
+  A small number of components were newly authored as part of security
+  hardening — notably a dependency-free OpenID Connect (OIDC) client
+  (framework/legacy/Textcube.Control.OIDC.php) that replaces the
+  end-of-life OpenID 2.0 implementation, and the removal of the bundled
+  phpopenid library. These newly authored components are released under
+  the GPL, consistent with the rest of the project.
 
   This work was performed with the assistance of an AI coding assistant
   (Anthropic Claude) under human review. The maintainer asserts no

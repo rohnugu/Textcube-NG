@@ -59,7 +59,7 @@ class Autoload_Legacy {
 		$this->function = array(
 			'Image','Setting','Respond','Misc');
 		$this->openid = array(
-			'OpenID', 'OpenIDSession', 'OpenIDConsumer');
+			'OpenID', 'OpenIDConsumer');
 		$this->control = array(
 			'Session','RSS');
 	}		

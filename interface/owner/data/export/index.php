@@ -8,6 +8,7 @@ $IV = array(
 	)
 );
 require ROOT . '/library/preprocessor.php';
+requireStrictRoute();
 set_time_limit(0);
 $includeFileContents = Validator::getBool(@$_GET['includeFileContents']);
 $writer = new OutputWriter();

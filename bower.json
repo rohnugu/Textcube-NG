@@ -1,9 +1,10 @@
 {
   "name": "textcube-ng",
-  "version": "1.10.10-php85.r1",
-  "homepage": "https://github.com/Needlworks/Textcube",
+  "version": "1.10.10-php85.r2",
+  "homepage": "https://github.com/deokio/textcube-ng",
   "authors": [
-    "Needlworks <contact@needlworks.org>"
+    "Needlworks <contact@needlworks.org>",
+    "@deokio <textcube-ng@deok.io>"
   ],
   "description": "Textcube-NG: PHP 8.5 community fork of Textcube 1.10.10. Personalized web publishing platform with multi-user support.",
   "main": "setup.php",

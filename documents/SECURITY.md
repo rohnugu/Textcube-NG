@@ -18,7 +18,7 @@ this is a volunteer-maintained community fork.
 ---
 
 작성일: 2026-05-16 / 최종 수정: 2026-05-26  
-대상 버전: Textcube-NG 1.10.10+php85.r1 (기반: php8.4-Textcube-1.10.10 v2.02)  
+대상 버전: Textcube-NG 1.10.10+php85.r2 (기반: php8.4-Textcube-1.10.10 v2.02)  
 범위: PHP 8.5 호환성 이식 + STAGE 4 보안 강화 작업 후 발견/확인된 미해결 보안 취약점  
 이전 단계 항목: 각 stage별 SECURITY.md 참조 (STAGE 1/2/3 해소 항목 포함)
 
@@ -33,12 +33,12 @@ this is a volunteer-maintained community fork.
 
 ---
 
-## [HIGH] Raw SQL 쿼리 + 수동 escape — 핵심 진입점 변환 완료, 잔여 쿼리 STAGE 3 이연
+## [FIXED] Raw SQL 쿼리 + 수동 escape — SQLi 방어 확보 (핵심 진입점 prepared 전환 + 잔여 escape 실측 입증), prepared 전면화는 best-practice 잔여
 
 - **위치**: `POD::query()` 인터페이스 전체. 대표 예: `library/auth.php:147` (`WHERE u.loginid = '$loginid'`), `library/model/blog.entry.php` 등 수백 곳
 - **내용**: SQL 쿼리를 문자열 임베딩 방식으로 조립하고 `mysqli::real_escape_string()`으로 수동 이스케이프. escape 누락 시 SQL Injection 가능.
 - **권고**: `prepare()`/`execute()`/`bind_param()` Prepared Statement 전면 도입.
-- **현황**: STAGE 2(v1.85~v1.90)에서 핵심 외부 입력 진입점을 prepared statement로 변환 완료. 잔여 내부 쿼리는 STAGE 3(v2.10) 이연. 미변환 외부 입력 함수에 `@security raw-sql-escape` PHPDoc 마커 부착.
+- **현황**: STAGE 2(v1.85~v1.90)에서 핵심 외부 입력 진입점을 prepared statement로 변환 완료. 잔여 내부 쿼리는 STAGE 3(v2.10) 이연. 미변환 외부 입력 함수에 `@security raw-sql-escape` PHPDoc 마커 부착. **잔여 마커 4함수는 escape 기반 SQLi 방어를 악성 입력 하니스로 실측 입증(2026-05-31, ALL PASS) — 아래 「악성 입력 실측 SQLi 방어 검증」 참조. 현 상태로 SQL Injection 방어는 확보되어 있으며, 잔여 항목은 실제 취약점이 아니라 파라미터 바인딩(best-practice) 미적용 수준.**
 
 ### STAGE 2에서 Prepared Statement로 변환 완료된 함수 (v1.85~v1.89)
 
@@ -67,6 +67,20 @@ this is a volunteer-maintained community fork.
 ### setup.php — legacy escaping 유지 (v1.89)
 
 `setup.php` L1136-1188의 관리자 계정 INSERT는 배치 SQL(`implode`로 조립된 다중 VALUES) 구조로 prepared statement로 변환 시 배치 실행 방식을 전면 재작성해야 함. 해당 파라미터(`$loginid`, `$name`, `$blog`)는 모두 `POD::escapeString()` 처리됨. 리스크 수용 후 legacy escaping 유지 결정. STAGE 3에서 재검토 예정.
+
+### 악성 입력 실측 SQLi 방어 검증 (2026-05-31)
+
+`@security raw-sql-escape` 마커 4함수가 escape로 SQL Injection을 실제 차단하는지, **포트의 실제 코드 경로**(DBModel / escapeSearchString / Trackback)를 악성 입력으로 실행하여 **생성 SQL을 추적·입증**함.
+
+| 함수 | 검증 방식(하니스) | 악성 입력 | 결과 |
+|------|------------------|----------|------|
+| `getEntryListWithPagingBySearch` / `getEntriesWithPagingBySearch` | 실제 `escapeSearchString` 경로로 LIKE 절 생성 추적 (`_sectest/entry_search_sqli_test.php`) | 따옴표 탈출·UNION·주석 절단·와일드카드(`%`,`_`)·NUL 6종 | **ALL PASS** — 따옴표 `\'`, 와일드카드 `\%`/`\_` escape, 리터럴/와일드카드 탈출 불가 |
+| `receiveTrackback` → `Trackback::add()` | 실제 `DBModel` + `Textcube.Data.RemoteResponse` 경로로 INSERT SQL 생성 추적 (`_sectest/trackback_sqli_test.php`) | `url`/`site`/`title`/`excerpt`에 따옴표 탈출·UNION·세미콜론 스택·NUL 6종 | **ALL PASS** — 외부입력 전부 `\'` escape, 리터럴 탈출 불가 (url 포함) |
+| `api_update_attaches_with_replace` | 정적 추적 | `$entryId`=`$post->id`(정수, 단일 호출 L956), `$newfile['label']`=`POD::escapeString` | 방어(정수 + escape) |
+
+- **부가 확인**: `POD::escapeString($s, $link = null)`의 2번째 인자는 **미사용 레거시 link 파라미터** → escape는 인자와 무관하게 항상 수행(`real_escape_string`/`escape_string`). v3.45의 "DBModel `getQualifierModel`이 `escape=null`일 때 미escape" 함정과는 **별개 경로**이며, 본 진입점들에는 해당하지 않음.
+- **결론**: 잔여 외부입력 진입점은 escape로 **SQL Injection이 실제 차단됨**(생성 SQL 실측). prepared statement 전면 전환은 `Paging::fetch`(완성 SQL 수령)·`DBModel`(`setAttribute(escape=true)`) 구조 제약으로 STAGE 3 이연을 유지하나, **현 상태로 SQLi 방어는 확보**됨.
+- **severity 재평가 (2026-05-31)**: SQLi 방어가 전수 스캔(신규 취약 0건) + 잔여 4함수 악성입력 실측(ALL PASS, 생성 SQL 추적)으로 확보되어 **실제 SQL Injection 취약점은 부재** → **[HIGH] 해제, [FIXED]로 분류**. prepared statement 전면화는 `Paging::fetch`/`POD::queryAll`(완성 SQL 실행)·전 DBMS Adapter 를 `(sql, params)` bind 방식으로 재설계하고 수십 개 검색·목록 함수 호출처를 수정해야 하는 **프레임워크 재설계 규모의 best-practice 개선(기술부채)**으로, 취약점이 아니므로 회귀 위험을 피해 이연을 유지한다.
 
 ---
 
@@ -110,48 +124,88 @@ this is a volunteer-maintained community fork.
 
 ---
 
-## [MEDIUM] StatGraph — jpgraph 1.x QPL 라이선스
+## [FIXED] StatGraph — jpgraph 1.x QPL 라이선스 → 의존 없는 SVG 그래프 대체 (v3.52, 2026-05-31)
 
 - **위치**: `plugins/StatGraph/count/src/jpgraph.php`
 - **내용**: 번들된 jpgraph 라이브러리가 QPL(Q Public License) 라이선스 적용. 상업적 사용 시 별도 라이선스 필요.
 - **권고**: Chart.js/ApexCharts 등 MIT 라이선스 대체 라이브러리로 재구현.
-- **현황**: 코드 내 `split()` 수정 완료(PHP 7.4 호환, STAGE 1). 기능 재구현은 별도 작업.
+- **현황**: **해소 (v3.52, 2026-05-31)**. jpgraph(QPL)를 **외부 라이브러리 의존 없는 인라인 SVG line chart**로 재구현(`DisplayStatisticsGraph()` → `Statistics::getWeeklyStatistics()` 최근 8일 방문수 SVG polyline). 미사용 jpgraph QPL 6파일 + `count.php`(`count/` 디렉토리) 제거. 자체 SVG 코드(GPL)라 라이선스 클린. upstream master도 jpgraph 번들 — 본 포트 개선. 검증: `_sectest/statgraph_svg_test.php` SVG 생성 PHP 7.4/8.4 PASS + 5스테이지 lint. (원본 `Textcube-1.10.10`은 수정 금지로 jpgraph 유지.)
 
 ---
 
-## [MEDIUM] OpenID 2.0 지원 중단 (EOL)
+## [FIXED] OpenID 2.0 지원 중단 (EOL) → OIDC 재구현 + phpopenid 제거 (STAGE4 v3.53, 2026-05-31)
 
-- **위치**: `library/contrib/phpopenid/`, `framework/legacy/Textcube.Control.Openid.php`, `plugins/CL_OpenID/`
-- **내용**: OpenID 2.0 프로토콜은 대부분의 Provider가 지원 종료. phpopenid(JanRain) 라이브러리는 더 이상 유지보수되지 않음.
-- **권고**: OpenID Connect(OIDC) 또는 OAuth 2.0 기반 인증으로 교체.
-- **현황**: PHP 8.2 코드 호환성 패치(v1.76~v1.79) 적용 예정. 기능 재구현은 별도 작업.
+- **위치**: `framework/legacy/Textcube.Control.OIDC.php`(신규), `framework/legacy/Textcube.Control.Openid.php`(헬퍼 축소), `plugins/CL_OpenID/`, `interface/login/openid/`(+`callback/` 신규), `interface/owner/setting/{account,openid}/`, `library/contrib/phpopenid/`(**제거**)
+- **내용**: OpenID 2.0 프로토콜은 대부분의 Provider가 2015년경 지원 종료. phpopenid(JanRain)는 유지보수 중단.
+- **조치**: OpenID Connect(OIDC, OAuth2 기반)로 재구현하여 일원화.
+  - 경량 자체 구현(`OIDCClient`) — 의존은 openssl + JSON + curl(PHP 내장)뿐, composer/외부 라이브러리 없음.
+  - **이중 옵트인(기본 비활성)**: ① CL_OpenID 플러그인 활성 ② 플러그인 설정에서 OIDC 활성화 + issuer/client_id/client_secret 입력. 두 게이트를 모두 충족해야 동작(플러그인 활성화만으로는 비활성).
+  - Authorization Code flow + PKCE(S256) + state/nonce + id_token(JWT **RS256 한정**) 검증: JWKS 서명·iss·aud·exp·nonce 일치.
+  - 게스트 댓글: claims → `Acl 'openid'` 식별자(`oidc:{iss}#{sub}`) 단일 출처 주입 → 기존 댓글 저장/조회/삭제·폼 흐름 무수정 호환.
+  - 사용자/관리자 로그인: `UserSettings`의 `openid.*` **명시적 연결** 매핑만(자동 계정생성 없음). sub 기반 식별자라 email 공유·provider 사칭으로 매핑 가로채기 불가.
+  - OpenID 2.0 완전 제거: phpopenid(53파일×5위치 = 265파일) 삭제, `Openid.php`를 헬퍼 전용으로 축소(전 메서드 **static화** — PHP 8 의 non-static 정적 호출 fatal 동시 해소), login/account/setting 의 2.0 흐름 제거, 죽은 상수(`OPENID_LIBRARY_ROOT`, `Auth_OpenID_NO_MATH_SUPPORT`) 정리.
+- **악성 입력 테스트**(PoC, `_sectest/oidc_*.php`, PHP 7.4/8.4 컨테이너):
+  - 이중 옵트인 게이트 6케이스: 플러그인 비활성/설정 빈/부분설정(issuer·secret 누락)은 모두 `blocked`, 완비 시에만 `ENABLED`.
+  - id_token 적대적 9케이스: 정상 토큰 통과 + **서명 위조(공격자 키)/서명 비트 변조/alg=none/alg=HS256 다운그레이드/aud 불일치/iss 불일치/exp 만료/nonce 재사용** 전부 `차단`.
+  - 신원 매핑: 미연결→게스트(자동승격 없음), 연결+writers→사용자 세션 승격, 연결+non-writers→권한 식별만, **다른 issuer 동일 sub→매핑 거부**(provider 사칭 차단).
+- **현황**: 해소됨 (STAGE4 v3.53 / STAGE3 v2.50 / STAGE2 v2.23 / STAGE1 1.97; 코드는 전 STAGE 적용, 원본 `Textcube-1.10.10` 제외).
 
 ---
 
 ## [LOW] 쿠키 속성 누락
 
-- **위치**: `framework/legacy/Textcube.Control.Session.php:39`
-- **내용**: `setcookie()` 호출에 `HttpOnly`, `SameSite`, `Secure` 속성 미설정.
+- **위치**: `framework/legacy/Textcube.Control.Session.php`·`Session.Memcached.php`, `library/preprocessor.php`, `library/auth.php`, `framework/legacy/Textcube.Control.Openid.php`, `interface/blog/comment/{comment,add}/index.php`
+- **내용**: `setcookie()` / `session_set_cookie_params()` 호출에 `HttpOnly`/`SameSite`/`Secure` 속성 미설정. XSS를 통한 세션 쿠키 탈취 및 CSRF(SameSite 미설정) 노출.
 - **권고**: `setcookie($name, $value, ['httponly'=>true,'samesite'=>'Lax','secure'=>true,...])`
-- **현황**: STAGE 2 이식 범위 외. STAGE 3(v2.13~v2.29) 점진 처리 예정.
+- **현황**: **해소 (v3.51, 2026-05-31)**. 7개 파일 12개 호출을 PHP 7.4+ 배열 옵션으로 전환 — `httponly=>true`, `samesite=>'Lax'`, `secure=>(bool)service.useSSL`. **Secure는 `useSSL=false`(HTTP) 운영에서 쿠키가 정상 전송되도록 조건부**(무조건 true 시 로그인 불가 회귀 방지). 모든 쿠키가 서버사이드(`$_COOKIE`)에서만 읽혀 HttpOnly 적용에 회귀 없음. v3.49 CSRF 방어를 환경 비의존으로 보완. upstream master도 레거시 형식(미설정) — 본 포트 개선. 검증: PHP 7.4/8.4 배열 옵션 형식 + 7파일×5스테이지 lint 통과.
 
 ---
 
-## [LOW] 정적 자산 버전 고정 (jQuery 1.11.2 등)
+## [LOW] 정적 자산 버전 고정 (jQuery 1.11.2 등) — audit 완료, 업그레이드 보류
 
-- **위치**: `framework/id/textcube/config.default.php:19-22`
-- **내용**: jQuery 1.11.2, Lodash 2.4.1 등 10년+ 전 버전 고정. 알려진 XSS 취약점 포함 가능.
-- **권고**: 최신 버전 업데이트.
-- **현황**: STAGE 2 이식 범위 외. STAGE 3(v2.13~v2.29) 점진 처리 예정.
+- **위치**: `framework/id/textcube/config.default.php:19-22`(jQuery/UI/bpopup/Lodash), `plugins/ED_tinyMCE/tinymce/`(TinyMCE), `skin/blog/periwinkle/js/`(jQuery UI 1.10.3)
+- **내용**: 10년+ 전 프런트엔드 자산 고정. 알려진 XSS·prototype pollution 포함.
+- **인벤토리 + 주요 CVE** (audit 2026-05-31):
+
+  | 자산 | 버전 | 연도 | 주요 CVE |
+  |------|------|------|----------|
+  | jQuery | 1.11.2 | 2014 | CVE-2020-11022/11023(XSS, `html()`), CVE-2019-11358(proto pollution), CVE-2015-9251 |
+  | jQuery UI | 1.11.2 + 1.10.3(skin) | 2014/2013 | CVE-2021-41182/41183/41184, CVE-2022-31160, CVE-2016-7103 (XSS) |
+  | Lodash | 2.4.1 | 2013 | **CVE-2019-10744(proto pollution, Critical 9.8)**, CVE-2020-8203, CVE-2018-3721/16487 |
+  | bpopup | 0.10.0 | 2013 | — |
+  | TinyMCE | 4.1.10 | 2014 | 4.x 초기 다수 XSS (4.9.11이 4.x 최종 보안패치) |
+
+- **TinyMCE 커스텀 번들 비교** (원본 `Textcube-1.10.10` 대비 확인):
+  - TinyMCE 4.1.10(LGPL 2.1)은 **커스텀 번들** — 공식 외 플러그인 **`TTMLsupport`**(textcube TTML 마크업 ↔ HTML, 첨부/이미지/미디어 변환) + **`codemirror`**(소스 편집), 그리고 `override.css`·`images`·`index.php`(에디터 래퍼·설정).
+  - textcube-ng 포팅 수정(원본 대비 차이 2건): ① `index.php` — codemirror `jsFiles` 출력을 `implode('\',\'',…)` → **`json_encode()`**(JS 배열 주입 안전화); ② `TTMLsupport/plugin.js`(+`plugin.min.js`) — 오디오 첨부(mp3/ogg/wav/flac/m4a/aac/wma/mid/midi)를 url 객체 대신 **TTML 태그 경로**로 처리(→ `<audio>` 렌더링).
+  - **업그레이드 함의**: `TTMLsupport`가 TinyMCE 4.x plugin API 에 의존 → TinyMCE 5/6/7 메이저 업그레이드 시 **커스텀 플러그인 재작성 필수**(고난도). **4.9.11**(4.x 최종)은 plugin API 가 동일하여 커스텀(TTMLsupport/codemirror)을 보존하며 보안패치만 적용 가능.
+- **업그레이드 계획**(위험·난이도 순, 미착수): ① Lodash 2.4.1 실사용처 확인 후 제거 또는 4.x(proto pollution Critical 우선) ② jQuery 1.11.2 → 3.7.1(textcube 자체 JS 의 deprecated 제거 API `.live`/`.andSelf`/`$.browser`/`.size()`/`$.parseJSON` **0건** 확인 → 코드 호환 양호, 번들 플러그인 bpopup/placeholder/tagsinput/touch-punch 동반 필요) ③ jQuery UI → 1.13.3(1.10.3/1.11.2 버전 통일) ④ TinyMCE → 4.9.11(커스텀 보존 최소 패치).
+- **현황**: **audit 완료(2026-05-31)** — 인벤토리·CVE·커스텀 비교·업그레이드 계획 수립. 업그레이드는 동작 변경 위험(특히 TinyMCE 커스텀 플러그인·jQuery 메이저)으로 단계적·검증 필요 → 별도 작업으로 보류.
+
+---
+
+## [INFO] XMLRPC blogAPI — 보안 검토 (정적 audit + 파서·권한 적대적 실측, 2026-05-31~06-01)
+
+- **위치**: `framework/legacy/Needlworks.PHP.XMLRPC.php`(XMLRPC 디스패처), `framework/boot/10-CoreClasses.php` `XMLStruct`(PHP expat 기반 XML 파서), `library/model/blog.api.php`(metaWeblog/blogger/mt handler), `library/model/blog.response.remote.php`(trackback/pingback)
+- **검토 결과**:
+  - **XXE / entity 폭탄**: 입력은 `XMLRPC::receive()` → `XMLStruct::open()` → PHP expat(`xml_parser_create`)으로 파싱되며, expat 은 외부 DTD/엔티티를 로드하지 않는다. **적대적 실측**(`_sectest/xmlrpc_xxe_test.php`, PHP 7.4/8.4): `file://` SYSTEM 외부 엔티티·외부 DTD·billion laughs(중첩 internal entity) 입력에 대해 **비밀 파일 미유출 + entity 미확장(cdata 1B) + 즉시 반환 — ALL PASS** → XXE·entity-expansion DoS **미해당(실측 입증)**.
+  - **인증**: 모든 API 메서드가 `api_login()` → `Auth::login($id, $password)` 통과 후 동작(실패 시 `XMLRPCFault` 반환). canonical id fallback 포함. 등록된 19개 핸들러 전부 `api_login` 가드 보유(무인증 메서드 없음).
+  - **권한(authz)**: 인증 후 Auth(`framework/boot/30-Auth.php:240-263`)가 `Privileges`(userid→blogid,acl)로 **blogid별** `Acl::setAcl` → 권한 미보유 blogid 는 acl 미설정(cross-blog·권한상승 불가). **적대적 실측**(`_sectest/xmlrpc_authz_test.php`, PHP 7.4/8.4): 무 Privileges→권한 0, acl=0→writers 기본만, acl 비트(OWNER/EDITOR/ADMIN) 정확 매핑, blogid 분리, uid=1만 creators, 미정의 비트 권한상승 없음 — **ALL PASS**.
+  - **SQLi**: handler 입력은 STAGE 2(v1.88)에서 핵심 INSERT/UPDATE(`api_addAttachment`/`api_update_attaches`)를 prepared statement 로 전환, 나머지는 `POD::escapeString` 으로 escape(#2 방어 확보). **트랙백 수신 경로는 `_sectest/trackback_sqli_test.php` 로 악성입력 실측(ALL PASS)**.
+- **잔여 갭(취약점 아님, 개선 여지)**:
+  - 로그인 무차별 대입(brute-force) rate limit 부재 — #1 MD5 와 동일 맥락.
+  - 비밀번호 MD5 평문 전송 → HTTPS 권장(#1).
+  - 메서드 본문(addEntry/deletePost 등)이 부여된 acl 을 실제로 준수하는지의 **종단 강제**는 실DB 통합 테스트 영역(권한 부여 로직·파서·인증·트랙백 SQLi 는 단위/실측 완료).
+- **현황**: 정적 audit + 파서·권한 부여 적대적 실측 완료(2026-05-31~06-01). XXE·entity DoS·인증·SQLi·권한 부여(acl/blogid) 측면에서 **critical 미방어 취약점 부재**. 메서드 본문의 acl 종단 강제는 실DB 통합 영역.
 
 ---
 
 ## [INFO] Clipboard API — HTTPS 필수
 
 - **위치**: `resources/script/common3.js` (`copyUrl()` 함수)
-- **내용**: `navigator.clipboard.writeText()` (Clipboard API)는 보안 컨텍스트(HTTPS 또는 localhost)에서만 사용 가능. HTTP 환경에서는 `_legacyCopyUrl()` fallback(IE: `window.clipboardData`, 기타: 텍스트 선택)으로 동작.
-- **권고**: 운영 환경에서 HTTPS 적용 권장.
-- **현황**: 이식 범위 외.
+- **내용**: `navigator.clipboard.writeText()` (Clipboard API)는 보안 컨텍스트(HTTPS 또는 localhost)에서만 사용 가능. HTTP 환경에서는 `_legacyCopyUrl()` fallback으로 동작: ① IE `window.clipboardData` → ② `document.execCommand('copy')`(secure context 불필요 → 현대 브라우저 HTTP 자동복사) → ③ 텍스트 선택(수동 복사).
+- **권고**: 운영 환경에서 HTTPS 적용 권장(Clipboard API 정식 경로).
+- **현황**: 해소(개선) (2026-05-31). HTTPS에서는 Clipboard API 사용(본 포트가 upstream보다 앞서 도입 — master는 IE `clipboardData`+텍스트선택만). HTTP 자동복사를 위해 `_legacyCopyUrl`에 `document.execCommand('copy')` fallback 추가. upstream 미수정 → 포트 자체 개선. 검증: node `--check` 5스테이지 구문 통과. 보안 취약점이 아닌 호환성/UX 개선.
 
 ---
 
@@ -456,4 +510,136 @@ PHP 오류 로그: 0건, Apache 오류 로그: 0건
 - **조치**:
   - 세 파일 모두 `requireStrictRoute();` 다음 줄에 `requirePrivilege('group.creators');` 추가.
   - php7.4, php8.2, php8.4, php8.5 전 버전 동일 적용.
-- **현황**: 해소됨 (v3.06). `suggest/index.php`의 SQL Injection(`$_GET['input']` 미처리)은 STAGE 3 prepared statement 전환 시 해소 예정.
+- **현황**: 해소됨 (v3.06). `suggest/index.php`의 SQL Injection(`$_GET['input']` 미처리)은 **v3.45에서 DBModel 빌더 전환으로 해소** (아래 [FIXED] 항목 참조).
+
+---
+
+## [FIXED] `control/action/user/suggest` — SQL Injection (`$_GET['input']` 미escape) → DBModel 빌더 전환 (v3.45, 2026-05-31)
+
+- **위치**: `interface/control/action/user/suggest/index.php`
+- **내용**: validator를 통과한 `$_GET['input']`(`$IV` 타입 `string` — UTF-8 유효성·길이만 검사, 내용 필터링 없음)이 자동완성 쿼리의 `LIKE "%...%"` 절에 `POD::escapeString()` 없이 직접 concat되어 **SQL Injection** 가능. v3.06의 권한 가드(`requirePrivilege('group.creators')`)로 인증 경계는 좁혔으나, 인증된 creator 권한 사용자 또는 CSRF로 악용될 여지가 남아 있었음.
+- **upstream 근거**: Needlworks/Textcube `refs #747`, commit `9c73a64` (2015-02-27) — 동일 파일의 raw 쿼리를 `DBModel` 빌더로 전환. 본 포트 1.10.10 기반에는 미반영 상태였음.
+- **조치**: raw `POD::queryAll(...)` → `DBModel` 빌더로 전환.
+  - upstream `init()`은 본 포트에 없는 신규 별칭이므로 기존 동등 API `reset()`으로 적응.
+  - 본 포트 `DBModel::getQualifierModel()`은 `escape=null`이면 escape하지 않으므로(upstream과 동작 차이), 두 qualifier 모두 `escape=true` 명시하여 `POD::escapeString()` 적용 보장. 미사용 `global $database;` 제거.
+  - php7.4, php8.2, php8.4, php8.5 전 버전 동일 적용.
+- **방어 검증** (`_sectest/suggest_sqli_test.php`, `php:8.4-cli`): 적용 **전에** 포트의 실제 DBModel 코드 경로(`getQualifierModel` + `_makeWhereClause`)에 악성 입력을 직접 주입하여 생성 SQL을 추적. `POD::escapeString`은 MySQL `real_escape_string`(utf8/utf8mb4, single-byte-safe charset → GBK류 멀티바이트 우회 불성립) 동작을 충실히 모델링.
+
+  | 악성 입력 | 생성된 WHERE (요약) | 판정 |
+  |-----------|---------------------|------|
+  | `' OR '1'='1` | `name LIKE '%\' OR \'1\'=\'1%'` | SAFE |
+  | `\' OR 1=1 -- ` | `name LIKE '%\\\' OR 1=1 -- %'` | SAFE |
+  | `"; DROP TABLE tc_Users;--` | `name LIKE '%\"; DROP TABLE tc_Users;--%'` | SAFE |
+  | `' UNION SELECT loginid,password FROM tc_Users -- ` | `name LIKE '%\' UNION SELECT ...%'` | SAFE |
+  | `admin'-- ` | `name LIKE '%admin\'-- %'` | SAFE |
+  | `a\0' OR 1=1` (NUL 바이트) | `name LIKE '%a\0\' OR 1=1%'` | SAFE |
+
+  악성 입력 7종(평범한 입력 1 + 공격 6) **ALL PASS** — 모든 작은따옴표가 `\'`로, 백슬래시가 `\\`로 escape되어 문자열 리터럴 탈출 불가. NUL 바이트는 `00-UnifiedEnvironment.php`의 `normalizeSuperglobalInput`이 이 코드 이전에 선행 제거(이중 방어).
+- **현황**: 해소됨 (v3.45).
+
+---
+
+## [FIXED] `control/action/user/suggest` — 반사형 + 저장형 XSS (JS/innerHTML 출력 인코딩) (v3.46, 2026-05-31)
+
+- **위치**: `interface/control/action/user/suggest/index.php` (+ 소비처 `resources/script/control.js`)
+- **내용**: 응답(`text/javascript`)이 `control.js`의 동적 `<script src>`로 **JS 실행**되는 JSONP 구조. 두 경로:
+  1. **반사형**: `$_GET['id']`(`$IV` `string`)·`$_GET['cursor']`를 JS 문자열 리터럴에 escape 없이 echo → 리터럴 탈출 시 임의 JS 실행. 정상 흐름의 `id`는 고정 DOM id `"suggestContainer"`(비-사용자 입력)이고 `requireStrictRoute`(Referer 검증)+`requirePrivilege('group.creators')` 가드가 있어 **실질 심각도 LOW**이나, 가드 우회 대비 심층방어.
+  2. **저장형**: 결과 행 `loginid - name`이 `showSuggestion`의 **`innerHTML` sink**(control.js L58)에 escape 없이 삽입 → 사용자 `name`에 `<img onerror>` 등 포함 시 실행. `control.js`가 `replaceAll("&quot;",'"')`로 HTML escape된 입력을 되돌리는 설계 전제였으나 서버가 escape를 누락하여 발생.
+- **upstream**: master의 `suggest/index.php`·`control.js` 모두 동일하게 미escape — upstream 미수정. 포트 내 기존 관용구로 방어.
+- **조치**:
+  - 반사형: `$_GET['id']`·`$_GET['cursor']` → `escapeJSInCData()` (`library/function/javascript.php`). `control`은 `Dispatcher.php`에서 interfaceType `owner`로 매핑되어 해당 헬퍼 로드 확인.
+  - 저장형: 결과 행 → `htmlspecialchars($v, ENT_QUOTES)` 후 백슬래시·CR·LF를 JS 리터럴 안전 형태로 `str_replace` escape (`control.js`의 `&quot;` 되돌림 설계와 정합).
+  - php7.4, php8.2, php8.4, php8.5 전 버전 동일 적용.
+- **방어 검증** (실제 JS 엔진 node, `php:8.4-cli`로 출력 생성):
+  - 반사형(`_sectest/run_xss_node.js`): `");alert(document.cookie);//`·`</script>…`·개행/백슬래시 우회·이벤트 핸들러 등 6종 → `alert` 미실행·`cookie` 미접근, 페이로드 문자열 인자로 흡수. **ALL PASS**.
+  - 저장형(`_sectest/run_xss_innerhtml_node.js`): `<img src=x onerror=alert(1)>`·`"><script>…`·JS 리터럴 탈출·백슬래시·개행 → fixed 모드 전부 SAFE(코드 미실행 + 클라이언트 `replaceAll` 후 raw `<>` 미잔존). 대조군 raw(미수정)는 전부 VULNERABLE로 탐지(JS 리터럴 탈출 raw는 `alert` 실제 실행) → 테스트 유효성 입증.
+- **현황**: 해소됨 (v3.46).
+
+## [FIXED] `owner/communication/comment`·`notify` / `owner/entry` — 반사형 XSS (HTML 속성 출력 인코딩 누락) (v3.47, 2026-05-31)
+
+- **위치**:
+  - `interface/owner/communication/comment/index.php` (`name`, `search`, `status`)
+  - `interface/owner/communication/notify/index.php` (`search`)
+  - `interface/owner/entry/index.php` (`visibility`)
+- **내용**: 검색/필터 폼의 hidden `<input … value="…">` 속성에 `$_POST` 값을 escape 없이 echo. 해당 변수들은 `$IV`에서 `string` 타입이라 validator가 UTF-8·길이만 검사하고 **내용 필터링은 하지 않음** → `"><script>…`·`" onmouseover="…` 등으로 속성·태그 탈출 시 임의 스크립트 실행. 동일 파일 `comment/index.php:557`의 노출형 검색창은 이미 `htmlspecialchars($search)`를 쓰고 있어, hidden input만 인코딩이 누락된 불일치였음.
+- **검증된 안전 변수**(같은 echo 블록): `ip`(`ip` 타입), `category`(`int`), `withSearch`(enum `array('on')`), `tagId`(`int`), plugin `visibility`(`$IV` 미선언 → validator drop) — 타입으로 방어되나, 출력 인코딩 정석·일관성을 위해 같은 블록의 reflected 값은 모두 `htmlspecialchars`로 통일.
+- **upstream**: master의 `comment`·`notify`·`entry` index.php 모두 동일하게 미escape — upstream 미수정. 포트 내 기존 관용구(`htmlspecialchars(ENT_QUOTES)`, `comment:557`과 동일)로 방어.
+- **조치**:
+  - 각 sink의 reflected 값 → `htmlspecialchars($_POST['…'], ENT_QUOTES)` (이중따옴표 속성이므로 `"`·`'` 동시 escape).
+  - php7.4·8.2·8.4·8.5 + 릴리즈 전 버전 동일 적용(15개 파일, 각 1:1 치환). 임시 Python 스크립트로 바이너리 치환하여 CRLF 보존.
+- **악성 입력 검증** (실제 HTML 파서 — PHP `DOMDocument`, `php:8.4-cli`, `_sectest/xss_attr_test.php`):
+
+| PoC 입력 | RAW(미수정) | FIXED |
+|---------|------------|-------|
+| `"><script>alert(document.cookie)</script>` | `<script>` 노드 생성(실행) | value에 데이터로 흡수, 위험노드 0 |
+| `"><img src=x onerror=alert(1)>` | `<img onerror>` 노드 생성 | 0 노드·0 이벤트 |
+| `" onmouseover="alert(1)` | 주입 이벤트 속성 생성 | 0 이벤트 |
+| `"></input><script>alert(1)</script>` | `<script>` 노드 생성 | 0 노드 |
+| `"><iframe src=javascript:alert(1)>` | `<iframe>` 노드 생성 | 0 노드 |
+| `normal-search-term`(정상) | 정상 | 정상 보존(기능 유지) |
+
+  - 판정: FIXED 모드에서 위험 노드·주입 이벤트 핸들러 **0개**, `value` 속성은 페이로드 원문을 **데이터로만** 보존. 대조군 RAW는 동일 파서에서 실제 위험 노드/이벤트가 생성됨을 확인 → 테스트 유효성 입증. **ALL PASS**.
+- **현황**: 해소됨 (v3.47).
+
+## [FIXED] `owner/help` — 경로순회/LFI (`$_GET['lang']` 미정규화) (v3.48, 2026-05-31)
+
+- **위치**: `interface/owner/help/index.php`
+- **내용**: 도움말 파일명을 `$filename = $_GET['lang'].'.'.$_GET['subject'].'.html'`로 구성해 `file_get_contents(ROOT."/interface/owner/help/".$filename)`로 읽음. `subject`는 `$IV` `filename` 타입(`^\w+(\.\w+)*$`)이라 안전하나, **`lang`은 `string` 타입**이라 내용 필터링이 없어 `../`·`..\`·`....//` 등으로 help 디렉토리를 이탈 가능. `.html` suffix와 중간 `.subject.`로 임의 파일 읽기는 제한되나, 디렉토리 트래버설로 의도치 않은 `*.<word>.html` 파일 접근(정보 노출)이 성립. 이 액션은 `preprocessor`만 거치고 `requireOwnership`/`requirePrivilege` 가드가 없어 인증 사용자 범위에서 노출.
+- **부가 발견**: `Validator::language`는 정규식 delimiter가 백슬래시(`preg_match('\^[[:alpha:]]{2}…')`)로 깨져 있어 PHP에서 항상 에러/false → `language` 타입은 검증 수단으로 사용 부적합(fail-safe로 항상 reject되나 기능 파손). 따라서 `lang` 방어는 `language` 타입 대신 화이트리스트로 적용.
+- **upstream**: master의 `help/index.php`도 동일하게 `lang`을 `string`으로 받고 sanitize 없음 — upstream 미수정. 포트에서 직접 방어.
+- **조치**: 경로 결합 전 `$lang = preg_replace('/[^A-Za-z0-9_\-]/', '', $_GET['lang']);` — 언어코드(영숫자·밑줄·하이픈)만 남기고 구분자(`/`·`\`)·점·`..` 전부 제거. `basename()`은 Linux에서 `\`를 구분자로 보지 않아 Windows 배포 시 백슬래시 우회가 가능하므로 화이트리스트를 택함. php7.4·8.2·8.4·8.5 + 릴리즈 전 버전 동일 적용.
+- **악성 입력 검증** (`_sectest/help_lfi_test.php`, `php:8.4-cli`, 경로 정규화로 help 디렉토리 이탈 판정):
+
+| PoC `lang` 입력 | RAW(미수정) | FIXED |
+|----------------|------------|-------|
+| `../../../../../../etc/passwd` | help 디렉토리 이탈(OUT) | 디렉토리 내(in) |
+| `../../config` | 이탈 | 내부 |
+| `foo/../../../bar` | 이탈 | 내부 |
+| `ko/../../secret` | 이탈 | 내부 |
+| `ko\..\..\win`(백슬래시) | 이탈 | 내부 |
+| `ko`·`en`(정상) | 정상 | 정상 보존(기능 유지) |
+
+  - 판정: FIXED는 모든 페이로드에서 최종 파일명에 디렉토리 구분자 없음 + 정규화 경로가 help 디렉토리 prefix 유지 → 이탈 0. 대조군 RAW는 동일 정규화에서 디렉토리 이탈 확인 → 테스트 유효성 입증. **ALL PASS**.
+- **현황**: 해소됨 (v3.48).
+
+## [FIXED] owner 상태변경 액션 CSRF 가드 누락 + `requireStrictRoute` path-모드 강화 (v3.49, 2026-05-31)
+
+- **위치**: `library/auth.php`(가드 함수) + 가드 누락 13개 액션(`interface/owner/...`)
+- **내용 (두 결함)**:
+  1. **CSRF 가드 누락**: 일부 상태변경 액션이 `requireStrictRoute()`(Referer 동일출처 검증) 미보유. 권한 자체는 `preprocessor.php`의 `requireOwnership()` + `Aco::getRequiredPrivFromUrl()`(URL별 권한)로 **중앙 방어**되나, CSRF는 개별 액션 의존. 같은 기능군의 `comment/delete`(휴지통 이동)·`trash/emptyTrash`는 가드 보유 ↔ 더 파괴적인 `trash/comment/delete`(영구삭제)·`trash/*/revert`는 누락 → **실수 누락**. 다수가 `$suri['id']` **GET 트리거**라 SameSite=Lax(브라우저 기본, 코드 미설정)로도 top-level navigation을 통해 CSRF 성립.
+  2. **path-모드 cross-blog 미차단**: `requireStrictRoute`가 **host만 비교**(`$refererHost === $serverHost`). textcube `service.type=path`(`example.com/basePath/{blogname}`)는 모든 블로그가 같은 host를 공유 → 같은 host의 다른 블로그가 악성 페이지 호스팅 시 Referer host 동일 → 통과(cross-blog CSRF). 기존 96개 가드 보유 액션 전부 동일한 한계.
+- **권한 관점(정정)**: 최초 "권한 가드 누락" 의심은 부정확 — owner/reader는 preprocessor에서 소유권·ACL이 중앙 강제됨. 쟁점은 CSRF 한정.
+- **트리거 / 심각도 분류**:
+
+| 액션 | sink | 트리거 | 비고 |
+|------|------|--------|------|
+| `trash/comment/delete`·`revert`, `trash/trackback/delete`·`revert` | 댓글/트랙백 영구삭제·복원 | GET `$suri['id']` | Lax 완화 약함 |
+| `skin/coverpage/delete`·`skin/sidebar/delete` | setBlogSetting(모듈 삭제) | GET | owner 레이아웃 |
+| `setting/domain/primary`·`secondary` | setPrimary/SecondaryDomain | GET | 도메인 설정 |
+| `data/optimize`·`export`, `entry/attachmulti/orphandelete` | OPTIMIZE/백업/첨부삭제 | GET | 유지보수·DoS성 |
+| `setting/userSetting/set`, `skin/adminSkin/set` | setBlogSettingGlobal | POST | Lax 완화 강함 |
+| (오탐 제외) `network/teamblog/changeBlog` | redirect만 | — | DB write 없음 |
+
+- **upstream**: master도 `trash/comment/delete`·`userSetting/set` 가드 미보유 + `requireStrictRoute` host-only 동일 — 미수정. 포트에서 보강.
+- **조치**:
+  - **(A) `requireStrictRoute()` 강화** (본 포트 개선, upstream 미존재): 판정을 순수 헬퍼 `__isReferentSameBlogScope($referer,$hostHeader,$serviceType,$basePath,$blogName)`로 분리. host≠ → 차단(기존). host 동일 시 — `service.type !== 'path'`(single/domain)는 **기존 동작 그대로 통과(회귀 0)**, `path`는 Referer의 `basePath` 제거 후 첫 세그먼트(blogname)를 현재 `blog.name`과 `===` 비교(**추출 실패 시 fail-open**으로 회귀 방지하되, 그 발생을 `trigger_error(E_USER_NOTICE)`로 기록 — textcube 코어 관행(`Validator`)과 일관, 운영 가시성 확보. 성공+불일치만 차단). `getBlogURL` path 형식(`…/basePath/blogname`)과 정합, fancyURL 무관. 판정은 순수 상태(`pass`/`block`/`failopen`) 반환이라 단위 테스트 가능.
+  - **(B) 13개 액션에 `requireStrictRoute()` 추가** — 보유측(`comment/delete:14`)과 동일 패턴(`require preprocessor` 직후). 오탐 `changeBlog` 제외.
+  - php7.4·8.2·8.4·8.5 + 릴리즈 전 버전 적용(auth.php 5 + 13×5=65 파일). 임시 Python 바이너리 치환으로 CRLF 보존.
+- **악성 입력 / 회귀 검증** (`_sectest/csrf_strictroute_test.php`, `php:8.4-cli`, 16 케이스):
+
+| type | basePath | blog.name | HTTP_HOST | Referer | 기대 | 결과 |
+|------|---------|-----------|-----------|---------|------|------|
+| single | '' | - | ex.com | http://ex.com/owner | 통과(회귀) | PASS |
+| single | '' | - | ex.com | http://evil.com | 차단 | PASS |
+| single | '' | - | ex.com | (무Referer) | 차단 | PASS |
+| domain | '' | - | a.ex.com | http://b.ex.com/owner | 차단 | PASS |
+| path | '' | myblog | ex.com | http://ex.com/myblog/owner | 통과(회귀) | PASS |
+| path | '' | myblog | ex.com | http://ex.com/**other**/owner | **차단(강화)** | PASS |
+| path | '/tc' | myblog | ex.com | http://ex.com/tc/**other**/owner | **차단(강화)** | PASS |
+| path | '' | blog | ex.com | http://ex.com/**blog2**/owner | **차단**(prefix함정) | PASS |
+| path | '' | myblog | ex.com | http://ex.com/ (blogname 없음) | 통과(fail-open) | PASS |
+| path | '' | myblog | ex.com | http://evil.com/myblog | 차단(host) | PASS |
+
+  - 전 18 케이스 **ALL PASS**(회귀 케이스 `pass` + 강화 케이스 `block` + blogname 미추출 `failopen` 동시 입증). 추가: 13개 액션 `requireStrictRoute` 존재 grep + auth.php·13개 액션 PHP lint 통과.
+- **잔여 한계(정직한 명시)**: 강화로 path-모드 cross-blog가 차단되나, 이는 host+blogname Referer 기반 방어다. blogname 추출 실패 시 fail-open(회귀 우선)하므로 비표준 URL 구조에선 cross-blog 차단이 적용되지 않을 수 있다(해당 fail-open 발생은 `trigger_error(E_USER_NOTICE)`로 로깅되어 사후 탐지·튜닝 가능). 완전한 출처 독립 방어는 블로그별 CSRF 토큰이 필요하나, fork의 플러그인 호환성·기존 사용자 영향을 고려해 채택하지 않았다.
+- **현황**: 해소됨 (v3.49).

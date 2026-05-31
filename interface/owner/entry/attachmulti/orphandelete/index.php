@@ -5,6 +5,7 @@
 define('__TEXTCUBE_CUSTOM_HEADER__', true);
 $IV = array();
 require ROOT . '/library/preprocessor.php';
+requireStrictRoute();
 requireModel('blog.attachment');
 session_write_close();
 

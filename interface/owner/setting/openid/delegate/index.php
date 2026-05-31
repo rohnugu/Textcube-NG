@@ -2,6 +2,10 @@
 /// Copyright (c) 2004-2007, Needlworks / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice ----
+/// OpenID 2.0 위임(delegation)은 프로토콜 EOL 로 제거되었다. OIDC 는 위임 개념이 없으므로
+/// 이 엔드포인트는 더 이상 위임 설정을 저장하지 않는다(과거 OpenIDConsumer::setDelegate 대체).
 
 $IV = array(
 	'GET' => array(
@@ -10,16 +14,8 @@ $IV = array(
 );
 
 require ROOT . '/library/preprocessor.php';
-requireLibrary('blog.skin');
 requireStrictRoute();
-$skin = new Skin($skinSetting['skin']);
 
-$consumer = new OpenIDConsumer;
-if( $consumer->setDelegate( $_GET['openid_identifier'] ) ) {
-	$skin->purgeCache();
-	Respond::ResultPage(0);
-} else {
-	Respond::ResultPage(-1);
-}
-
+// 위임 기능 제거 — 미지원.
+Respond::ResultPage(-1);
 ?>

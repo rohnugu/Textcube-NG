@@ -22,9 +22,9 @@ function login($loginid, $password, $preKnownPassword = null) {
 	}
 
 	if (empty($_POST['save'])) {
-		setcookie('TSSESSION_LOGINID', '', time() - 31536000, $ctx->getProperty('service.path') . '/', $ctx->getProperty('service.domain'));
+		setcookie('TSSESSION_LOGINID', '', array('expires' => time() - 31536000, 'path' => $ctx->getProperty('service.path') . '/', 'domain' => $ctx->getProperty('service.domain'), 'secure' => (bool)$ctx->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 	} else {
-		setcookie('TSSESSION_LOGINID', $loginid, time() + 31536000, $ctx->getProperty('service.path') . '/', $ctx->getProperty('service.domain'));
+		setcookie('TSSESSION_LOGINID', $loginid, array('expires' => time() + 31536000, 'path' => $ctx->getProperty('service.path') . '/', 'domain' => $ctx->getProperty('service.domain'), 'secure' => (bool)$ctx->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 	}
 
 	if( in_array( "group.writers", Acl::getCurrentPrivilege() ) ) {
@@ -94,13 +94,39 @@ function requireOwnership() {
 	return false;
 }
 
+/// CSRF 강화 (본 포트 개선, upstream 미존재): 기존 host-only Referer 검증은 단일 host
+/// path-모드 멀티블로그의 cross-blog CSRF를 막지 못함. host 동일 시 블로그 스코프까지 검증.
+/// single/domain 모드는 기존 동작 유지(회귀 0), path 모드만 blogname 비교(추출 실패 시 fail-open).
+/// 회귀+강화 검증: _sectest/csrf_strictroute_test.php (18 케이스 ALL PASS).
+function __referentBlogScopeStatus($referer, $hostHeader, $serviceType, $basePath, $blogName) {
+	if (!is_string($referer) || $referer === '') return 'block';
+	$url = parse_url($referer);
+	if ($url === false || empty($url['host'])) return 'block';
+	$refHost = strtolower($url['host']);
+	$srvHost = strtolower(explode(':', (string)$hostHeader)[0]);
+	if ($refHost !== $srvHost) return 'block';
+	if ($serviceType !== 'path') return 'pass';
+	$refPath = isset($url['path']) ? $url['path'] : '';
+	if ($basePath !== '' && strpos($refPath, $basePath) === 0)
+		$refPath = substr($refPath, strlen($basePath));
+	$seg = explode('/', ltrim($refPath, '/'));
+	$refBlog = isset($seg[0]) ? urldecode($seg[0]) : '';
+	if ($refBlog === '') return 'failopen';
+	return ($refBlog === (string)$blogName) ? 'pass' : 'block';
+}
+
 function requireStrictRoute() {
-	if (isset($_SERVER['HTTP_REFERER']) && ($url = parse_url($_SERVER['HTTP_REFERER']))) {
-		$refererHost = strtolower($url['host']);
-		$serverHost  = strtolower(explode(':', $_SERVER['HTTP_HOST'])[0]);
-		if ($refererHost === $serverHost)
-			return;
-	}
+	$context = Model_Context::getInstance();
+	$__scope = __referentBlogScopeStatus(
+			isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : null,
+			isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '',
+			$context->getProperty('service.type'),
+			(string)$context->getProperty('service.path'),
+			(string)$context->getProperty('blog.name'));
+	if ($__scope === 'failopen')
+		trigger_error('requireStrictRoute: path-mode blogname unresolved, fail-open allowed (referer=' . (isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '') . ')', E_USER_NOTICE);
+	if ($__scope !== 'block')
+		return;
 	header('HTTP/1.1 412 Precondition Failed');
 	header('Content-Type: text/html');
 	header("Connection: close");

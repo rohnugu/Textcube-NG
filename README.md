@@ -1,19 +1,20 @@
 Textcube-NG: Brand Yourself - Personalized web publishing platform
 ==================================================================
 
-**Version**: `1.10.10+php85.r1`
+**Version**: `1.10.10+php85.r2`
 
 > ## ⚠️ Security Notice — Read Before Deployment
 >
 > This fork brings Textcube 1.10.10 to PHP 8.5 compatibility and addresses
-> several security issues, but **unresolved HIGH-severity items remain**.
-> See [SECURITY.md](./documents/SECURITY.md) for the complete list. Notably:
+> several security issues, but **one unresolved HIGH-severity item remains**
+> (unsalted MD5 passwords). See [SECURITY.md](./documents/SECURITY.md) for the complete list. Notably:
 >
 > - **Passwords are stored as unsalted MD5** (legacy from upstream; intentionally retained for
 >   drop-in compatibility with existing Textcube data — naive migration breaks logins for existing users)
-> - **Hundreds of internal queries still use string-escaped raw SQL** (core
->   external entry points have been converted to prepared statements; tracked
->   in SECURITY.md)
+> - Internal queries use string-escaped raw SQL (not prepared statements).
+>   SQL injection defense has been **verified by adversarial testing** (no
+>   actual vulnerability found); full prepared-statement migration remains a
+>   best-practice item, not a vulnerability — see SECURITY.md
 >
 > **Not recommended for public-facing production deployment** without
 > additional hardening. Suitable for: local/internal use, archival access
@@ -72,7 +73,7 @@ each supported version:
 | `php7.4-Textcube-1.10.10` | PHP 7.4 | 44/44 PASS |
 | `php8.2-Textcube-1.10.10` | PHP 8.2 | 33/33 PASS |
 | `php8.4-Textcube-1.10.10` | PHP 8.4 | 33/33 PASS |
-| `Textcube-NG-1.10.10+php85.r1` *(this release)* | PHP 8.5 | 33/33 PASS |
+| `Textcube-NG-1.10.10+php85.r2` *(this release)* | PHP 8.5 | 33/33 PASS |
 
 The PHP 8.4 and PHP 8.5 packages share the same codebase — the PHP 8.5 target required
 no additional PHP code changes beyond the PHP 8.4 stage.
@@ -106,16 +107,20 @@ full modification history.
 
 | Severity | Open | Notes |
 |----------|------|-------|
-| HIGH     | 2    | MD5 password hashing; raw SQL in internal queries |
-| MEDIUM   | 2    | jpgraph QPL license; OpenID 2.0 EOL |
-| LOW      | 2    | Cookie attributes; outdated static assets |
+| HIGH     | 1    | MD5 password hashing (intentionally retained) |
+| MEDIUM   | 0    | jpgraph QPL & OpenID 2.0 EOL — both resolved |
+| LOW      | 1    | Outdated static assets (audited; upgrade deferred) |
 
-22 issues resolved across all severity levels. See [SECURITY.md](./documents/SECURITY.md) for full details.
+25 issues resolved across all severity levels. See [SECURITY.md](./documents/SECURITY.md) for full details.
 
 Notable open items:
 - MD5 password hashing (no salt) — intentionally retained for drop-in hosting compatibility; migration requires careful strategy (e.g., on-login rehashing) to avoid breaking existing user logins
-- Internal raw SQL queries — core entry points converted; bulk migration pending
-- Legacy dependencies (phpopenid, phpxpath, jpgraph) — no CVE review yet
+- Outdated static assets (jQuery 1.11.2, Lodash 2.4.1, TinyMCE 4.1.10, etc.) — audited (inventory + CVEs documented); upgrade deferred due to behavior-change risk (notably the customized TinyMCE plugins TTMLsupport/codemirror). See SECURITY.md #6.
+
+Resolved in this release (r2):
+- **OpenID 2.0 (EOL) → OpenID Connect (OIDC)** reimplementation with double opt-in (disabled by default); legacy phpopenid (265 files) removed
+- **jpgraph (QPL)** → dependency-free inline SVG chart
+- **Raw SQL SQLi defense** verified by adversarial testing — reclassified from HIGH (prepared-statement full migration remains a best-practice item, not a vulnerability)
 
 ## REQUIREMENTS (CURRENT VERSION — PHP 8.5 Port)
 
@@ -169,13 +174,22 @@ IIS, Nginx (configuration documented but untested by current maintainer).
 
 ### Test Coverage
 
-`tc_full_test.sh` covers: setup, authentication, basic CRUD for
+**Functional** (`tc_full_test.sh`): setup, authentication, basic CRUD for
 entries/comments/categories, attachment upload, TTXML import/export, RSS/Atom
 feeds, skin rendering, basic plugin loading.
 
-**Not covered by automated tests**: OpenID flow, trackback send/receive,
-XMLRPC API, individual plugin functionality beyond load, large-scale
-performance, concurrent multi-user scenarios.
+**Security — adversarial** (`_sectest/`): SQL injection (incl. **trackback
+receive**, entry search, user suggest), XSS (reflected / stored / HTML-attribute),
+path traversal / LFI, CSRF (`requireStrictRoute` path-mode), the OIDC engine
+(opt-in gates, JWT/JWKS verification, identity mapping), and the **XMLRPC parser**
+(XXE / external-DTD / billion-laughs). These are adversarial unit/integration
+harnesses that trace generated SQL/output/parser behavior for malicious input.
+
+**Not covered**: OIDC live-provider end-to-end flow (the engine is unit-tested
+above; integration with a real provider is manual), trackback **send** (outbound
+request), **XMLRPC handler authorization paths** (the parser itself is XXE/DoS-tested
+above), individual plugin functionality beyond load, large-scale performance,
+concurrent multi-user scenarios.
 
 ## REQUIREMENTS (OLD VERSIONS)
 

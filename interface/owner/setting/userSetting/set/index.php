@@ -3,5 +3,6 @@
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 require ROOT . '/library/preprocessor.php';
+requireStrictRoute();
 Respond::ResultPage(Setting::setBlogSettingGlobal($_POST['name'], $_POST['value']));
 ?>

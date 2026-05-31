@@ -304,12 +304,278 @@
 
 ---
 
+## v1.96 — `MySQL/Adapter.php` Prepared Statement API 구현 — mysqli 래퍼 완성 (2026-05-17)
+
+- **변경 이유**: `MySQL/Adapter.php` 는 PHP 7.0의 `ext/mysql` 제거 이후 내부적으로 `new mysqli()` 를 사용하는 MySQLi 래퍼로 재작성되었다. v1.85 (STAGE 2)에서 Prepared Statement API (`prepare`, `bindAndExecute`, `fetchAllStmt`) 를 IAdapter 인터페이스에 추가했을 때, MySQL 어댑터 구현은 `RuntimeException("Prepared statements not supported")` 를 던지는 스텁으로 잘못 작성되었다. 이로 인해 MySQL 어댑터(기본 어댑터) 사용 시 모든 로그인이 500 Internal Server Error 로 실패.
+- **PHP 권고**: MySQL 어댑터는 이미 MySQLi 연결 객체(`self::$db`)를 보유하므로 prepared statement 기능을 그대로 위임할 수 있다.
+- **조치**: 세 메서드를 `self::$db` 에 위임하는 실제 구현으로 교체.
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `framework/data/MySQL/Adapter.php` | `prepare()` → `self::$db->prepare($query)` / `bindAndExecute()` → `bind_param + execute` / `fetchAllStmt()` → `get_result + fetch_assoc` |
+| `framework/alias/DBAdapter.php` | 폴백 기본값 `'MySQL'` → `'MySQLi'` |
+| `setup.php` | dbms 감지 순서 변경 — MySQLi 를 MySQL 보다 먼저 추가하여 신규 설치 시 기본 선택값이 MySQLi 가 되도록 수정 |
+
+---
+
+## v1.95 — `control/server/config`, `control/server/rewrite` 권한 가드 추가 (보안 수정, 2026-05-17)
+
+- **변경 이유**: `interface/control/server/config/index.php` 및 `interface/control/server/rewrite/index.php` 에 `requireStrictRoute()` 후 권한 검사가 없어, `group.owners` 권한 사용자(블로그 소유자)가 시스템 전역 설정 변경 및 `.htaccess` 덮어쓰기가 가능한 취약점. 실제 악용 가능성 확인됨.
+- **PHP 보안 권고**: 관리 기능 엔드포인트는 반드시 최소 권한 원칙(PoLP)에 따라 `requirePrivilege()` 가드를 배치할 것.
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `interface/control/server/config/index.php` | `requireStrictRoute();` 다음 줄에 `requirePrivilege('group.creators');` 추가 |
+| `interface/control/server/rewrite/index.php` | `requireStrictRoute();` 다음 줄에 `requirePrivilege('group.creators');` 추가 |
+
+> **확인된 취약점**: 시나리오 테스트에서 `group.owners` 계정으로 서버 설정 변경(`$service['timeout']` 전역 변경, `error=0` 확인) 및 `.htaccess` 임의 덮어쓰기로 URL 리라이팅 전체 중단 재현됨. SECURITY.md `[FIXED]` 항목으로 갱신.
+
+---
+
+## v1.97 — `control/action/user/add`, `delete`, `suggest` 권한 가드 추가 (보안 수정, 2026-05-17)
+
+- **변경 이유**: `interface/control/action/user/add/index.php`, `delete/index.php`, `suggest/index.php` 에 `requireStrictRoute()` 후 `requirePrivilege('group.creators')` 가드가 없어, `group.owners` 권한 사용자(블로그 소유자, userid≠1)가 직접 API 를 호출하여 사용자 추가·삭제 및 전체 사용자 loginid/이름 열람이 가능한 취약점. 실제 악용 확인됨.
+- **PHP 보안 권고**: 관리 기능 엔드포인트는 반드시 최소 권한 원칙(PoLP)에 따라 `requirePrivilege()` 가드를 배치할 것.
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `interface/control/action/user/add/index.php` | `requireStrictRoute();` 다음 줄에 `requirePrivilege('group.creators');` 추가 |
+| `interface/control/action/user/delete/index.php` | `requireStrictRoute();` 다음 줄에 `requirePrivilege('group.creators');` 추가 |
+| `interface/control/action/user/suggest/index.php` | `requireStrictRoute();` 다음 줄에 `requirePrivilege('group.creators');` 추가 |
+
+> **확인된 취약점**: `group.owners` 계정으로 `user/add` — 시스템 사용자 추가, `user/delete` — 기존 사용자 삭제, `user/suggest` — loginid·이름 전수 열거가 가능함을 확인함.
+
+---
+
 ## v2.00 — STAGE 2 종료
 
 - 회귀 테스트 결과 SECURITY.md에 기록.
 - SECURITY.md 모든 항목 현황 최종 재평가.
 - README.md PHP 8.2 명시 최종 확인.
 - `release-php8.2.zip` 산출.
+
+---
+
+## v2.01 — STAGE 2 진행 상태 재점검 (2026-05-17)
+
+- v1.75 ~ v2.00 전체 항목 코드 대조 점검 완료.
+- **v1.86 재점검**: 점검 초기에 `framework/boot/30-Auth.php` 행을 PRNG 환각으로 오판하였으나, 해당 행은 Prepared Statement 변환(`WHERE loginid = ? placeholder`)에 관한 기록임을 확인. `30-Auth.php:401` `POD::prepare()` 실 적용 확인. 표 수정 없음.
+- 나머지 v1.75~v1.97 항목 코드 일치 확인. 누락 없음.
+
+---
+
+## v2.02 — PRNG 잔존 분류 + `phpopenid/CryptUtil.php` 보안 강화 (2026-05-17)
+
+- **변경 이유**: STAGE 2 전체 `rand()` / `mt_rand()` 잔존 호출을 보안/비보안 컨텍스트로 분류. 보안 컨텍스트 1건 발견하여 `random_bytes()`로 교체. (php.net/function.random-bytes)
+
+**보안 컨텍스트 — 교체 적용**
+
+| 파일 | 라인 | 변경 전 | 변경 후 |
+|------|------|---------|---------|
+| `library/contrib/phpopenid/Auth/OpenID/CryptUtil.php` | 60 (폴백 블록) | `for ($i=0; $i<$num_bytes; $i+=4) { $bytes .= pack('L', mt_rand()); } $bytes = substr($bytes, 0, $num_bytes);` | `$bytes = random_bytes($num_bytes);` |
+
+- **변경 이유**: `getBytes()` 함수는 OpenID 프로토콜의 암호화 난수 생성에 사용된다. 기존 폴백 경로(`Auth_OpenID_RAND_SOURCE === null` 또는 파일 열기 실패 시)에서 `mt_rand()`(예측 가능 PRNG)를 사용하고 있었다. PHP 7.0+에서는 `random_bytes()`가 항상 CSPRNG를 보장하므로 교체. (php.net/migration80 — mt_rand 보안 부적합 주의)
+
+**비보안 컨텍스트 — 유지 결정 (SECURITY.md [INFO] 분류 기록)**
+
+| 파일 | 함수/용도 | 판정 |
+|------|-----------|------|
+| `library/contrib/phpopenid/Auth/OpenID/DiffieHellman.php:73` | `$this->lib->rand($this->mod)` — BigMath 클래스 메서드 호출 (PHP 내장 `rand()` 아님, 내부에서 `CryptUtil::getBytes()` 사용) | 안전 |
+| `library/contrib/phpopenid/Auth/OpenID/BigMath.php:142` | `function rand($stop)` — 메서드 정의. 내부에서 `CryptUtil::getBytes()` 호출 | 안전 |
+| `library/contrib/phpmailer/src/PHPMailer.php:2843` | `mt_rand()` — MIME boundary 생성 최후 폴백 ("We failed to produce a proper random string") | 비보안, 유지 |
+| `plugins/StatGraph/count/src/jpgraph.php` | `rand()` — 그래프 렌더링 내부 위치·색상 계산 | 비보안, 유지 |
+| `plugins/FM_Textile/classTextile.php`, `ttml.php` | `rand()` — HTML 요소 고유 ID 생성 | 비보안, 유지 |
+| `plugins/FM_TTML/ttml.php`, `plugins/FM_Markdown/ttml.php` | `rand()` — 동상 | 비보안, 유지 |
+| `plugins/GoogleMap/index.php` | `rand()` — 지도 컨테이너 div ID 생성 | 비보안, 유지 |
+
+---
+
+## v2.03 — phpmigtest COPY 기반 격리 테스트 (2026-05-17)
+
+- `Containerfile.phpmigtest.php82` 신설: STAGE 2 코드를 COPY 기반으로 격리하여 tc_full_test.sh 실행 — 호스트 소스 디렉토리 보호.
+- `textcube-migtest-php82` 이미지 빌드 완료.
+- tc_full_test.sh 33/33 PASS, PHP 오류 로그 0건.
+
+---
+
+## v2.04 — `MySQLi/Adapter.php`, `MySQLi/Debug.php`, `MySQL/Debug.php` mysqli 절차형 → 객체지향 전환 (STAGE 3 v2.02 역이식, 2026-05-17)
+
+- **변경 이유**: STAGE 3 v2.02에서 PHP 8.5 deprecated 대비로 적용한 mysqli OOP 전환을 STAGE 2에도 동일하게 적용. PHP 8.2 시점에서는 deprecated 아니나 일관성 및 미래 호환성 확보를 위해 역이식.
+- **PHP 권고**: mysqli 연결/결과 객체의 프로퍼티·메서드를 직접 사용할 것.
+
+| 절차형 (구) | 객체지향 (신) | 적용 파일 |
+|-------------|---------------|----------|
+| `mysqli_character_set_name(POD::$db)` | `POD::$db->character_set_name()` | Debug.php 2개 |
+| `mysqli_error(POD::$db)` | `POD::$db->error` | Debug.php 2개 |
+| `mysqli_errno(POD::$db)` | `POD::$db->errno` | Debug.php 2개 |
+| `mysqli_num_rows($result)` | `$result->num_rows` | Debug.php 2개, Adapter.php |
+| `mysqli_affected_rows(POD::$db)` | `POD::$db->affected_rows` | Debug.php 2개 |
+| `mysqli_free_result($handle)` | `$handle->free()` | Adapter.php |
+| `mysqli_fetch_array($handle)` | `$handle->fetch_array()` | Adapter.php |
+| `mysqli_fetch_row($handle)` | `$handle->fetch_row()` | Adapter.php |
+| `mysqli_fetch_assoc($handle)` | `$handle->fetch_assoc()` | Adapter.php |
+| `mysqli_error($err)` | `$err->error` | Adapter.php |
+
+| 파일 | 변경 건수 |
+|------|-----------|
+| `framework/data/MySQLi/Debug.php` | 7건 |
+| `framework/data/MySQL/Debug.php` | 7건 |
+| `framework/data/MySQLi/Adapter.php` | 6건 |
+
+**검증**: PHP 문법 검사(`php -l`) 3개 파일 모두 통과. 로직은 STAGE 3 v2.02 적용본과 동일.
+
+---
+
+## v2.05 — phpmigtest 재빌드 검증 (mysqli OOP 백포트 v2.04 반영, 2026-05-18)
+
+- v2.04 mysqli 절차형 → 객체지향 전환 적용 후 `textcube-migtest-php82` 이미지 재빌드.
+- tc_full_test.sh 33/33 PASS, PHP 오류 로그 0건.
+
+### 테스트 결과 (2026-05-18, phpmigtest-php82, v2.04 적용 후)
+
+| 모드 | 결과 |
+|------|------|
+| tc_full_test.sh 33/33 | **PASS** |
+| PHP 오류 로그 | **0건** |
+
+---
+
+## v2.06 — `addBlog()` 기본 에디터 `'modern'` → `'tinyMCE'` 수정 (2026-05-19)
+
+- **변경 이유**: STAGE 1 v1.80과 동일 (상세 내용 `../php7.4-Textcube-1.10.10/CHANGELOG.md` 참조).
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `library/model/blog.blogSetting.php` | `addBlog()`: `defaultEditor` 기본값 `'modern'` → `'tinyMCE'` |
+
+---
+
+## v2.07 — `requireStrictRoute()` 비표준 포트 환경 Referer 비교 버그 수정 (2026-05-19)
+
+- **변경 이유**: STAGE 1 v1.81과 동일 (상세 내용 `../php7.4-Textcube-1.10.10/CHANGELOG.md` 참조).
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `library/auth.php` | `requireStrictRoute()`: `$url['host'] == $_SERVER['HTTP_HOST']` → `$refererHost` (host:port 재조합) 비교 |
+
+---
+
+## v2.08 — `Validator::number()` 비숫자 + bypass 처리 수정 (2026-05-19)
+
+- **변경 이유**: STAGE 1 v1.82와 동일. PHP 8.0 브레이킹 체인지로 인해 `"null"` 문자열과 float 비교가 문자열 비교로 변경 → latitude/longitude IV 유효성 검사 실패 → "저장하지 못했습니다". 상세 내용 `../php7.4-Textcube-1.10.10/CHANGELOG.md` 참조.
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `framework/boot/10-CoreClasses.php` | `Validator::number()`: 비숫자 + `bypass=true` 시 범위 체크 생략 후 true 반환 |
+
+---
+
+## v2.09 — `add/index.php` 임시 첨부파일 parent 업데이트 패치 소급 문서화 (2026-05-19)
+
+- STAGE 1 v1.83과 동일. 상세 내용 `../php7.4-Textcube-1.10.10/CHANGELOG.md` 참조.
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `interface/owner/entry/add/index.php` | `addEntry()` 성공 후 `DBModel`로 `Attachments.parent=0` → 신규 entryId 업데이트 |
+
+---
+
+## v2.10 — `requireStrictRoute()` 포트 비교 로직 정정 (2026-05-19)
+
+- **v2.07 수정 오류 정정**: STAGE 1 v1.84와 동일. 상세 내용 `../php7.4-Textcube-1.10.10/CHANGELOG.md` 참조.
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `library/auth.php` | `requireStrictRoute()`: Referer host+port 재조합 → 호스트명만 추출 후 `$_SERVER['HTTP_HOST']`와 비교 |
+
+## v2.11 — `Tag` 클래스 메서드 `static` 선언 추가 (PHP 8.0 Fatal Error 대응, 2026-05-19)
+
+- STAGE 1 v1.85와 동일. 상세 내용 `../php7.4-Textcube-1.10.10/CHANGELOG.md` 참조.
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `framework/legacy/Textcube.Data.Tag.php` | `doesExist`, `addTagsWithEntryId`, `modifyTagsWithEntryId`, `deleteTagsWithEntryId`, `getTagsWithEntryId`, `_getMaxId` — `static` 선언 추가 |
+
+## v2.12 — legacy Data 클래스 `@static@` 메서드 `static` 선언 일괄 추가 (2026-05-19)
+
+- STAGE 1 v1.86과 동일. 상세 내용 `../php7.4-Textcube-1.10.10/CHANGELOG.md` 참조.
+
+| 파일 | 추가된 `static` 메서드 |
+|------|----------------------|
+| `Textcube.Data.php` | `removeAll` |
+| `Textcube.Data.DataMaintenance.php` | `removeAll` |
+| `Eolin.API.Syndication.php` | `join`, `leave` |
+| `Textcube.Data.Feed.php` | `getId`, `getName` |
+| `Textcube.Data.LinkCategories.php` | `getId`, `getName` |
+| `Textcube.Data.SubscriptionStatistics.php` | `compile` |
+| `Textcube.Data.RefererStatistics.php` | `compile` |
+| `Textcube.Data.DailyStatistics.php` | `compile`, `validateDate` |
+| `Textcube.Data.BlogStatistics.php` | `compile` |
+| `Textcube.Data.Notice.php` | `doesExist` |
+| `Textcube.Data.Keyword.php` | `doesExist` |
+| `Textcube.Data.CommentNotifiedSiteInfo.php` | `getEntry` |
+| `Textcube.Data.CommentNotified.php` | `getEntry` |
+| `Textcube.Data.Comment.php` | `getEntry` |
+| `Textcube.Data.Post.php` | `correctTagsAll` |
+| `Textcube.Data.BlogSetting.php` | `setTimezone`, `validateName` |
+| `Textcube.Data.Attachment.php` | `doesExist`, `getParent`, `adjustPermission`, `confirmFolder` |
+
+## v2.13 — `getBlogURL()` domain 모드 서브도메인 점(.) 누락 표기 오류 수정 (2026-05-19)
+
+- STAGE 1 v1.87과 동일. 상세 내용 `../php7.4-Textcube-1.10.10/CHANGELOG.md` 참조.
+- 수정 파일: `library/model/blog.service.php:64`
+
+## v2.14 — `00-UnifiedEnvironment.php` magic_quotes 제거 → `normalizeSuperglobalInput()` 동등 변환 소급 적용 (2026-05-31)
+
+- STAGE 1 v1.3에서 `get_magic_quotes_gpc()` 블록을 단순 제거했으나, 원본의 전체 슈퍼글로벌 순회 구조를 동등 변환해야 함. null byte 제거(`str_replace(chr(0), '', $value)`)로 대체하여 입력값 정규화 책임 유지.
+- 수정 파일: `framework/boot/00-UnifiedEnvironment.php`
+
+## v2.15 — `control/action/user/suggest` SQL Injection 해소 (raw 쿼리 → DBModel 빌더 전환, 보안 수정, 2026-05-31)
+
+- STAGE 4 v3.45와 동일 (5스테이지 공통 적용). 상세·악성 입력 검증 내용은 STAGE 4 `changelog8.4to8.5.md` v3.45 및 SECURITY.md 참조.
+- 수정 파일: `interface/control/action/user/suggest/index.php`
+
+## v2.16 — `control/action/user/suggest` 반사형 + 저장형 XSS 해소 (출력 인코딩, 보안 수정, 2026-05-31)
+
+- STAGE 4 v3.46과 동일 (5스테이지 공통 적용). 상세·검증 내용은 STAGE 4 `changelog8.4to8.5.md` v3.46 및 SECURITY.md 참조.
+- 수정 파일: `interface/control/action/user/suggest/index.php`
+
+## v2.17 — `owner/communication/comment`·`notify` / `owner/entry` 반사형 XSS 해소 (HTML 속성 출력 인코딩, 보안 수정, 2026-05-31)
+
+- STAGE 4 v3.47과 동일 (5스테이지 공통 적용). 상세·검증 내용은 STAGE 4 `changelog8.4to8.5.md` v3.47 및 SECURITY.md 참조.
+- 수정 파일: `interface/owner/communication/comment/index.php`, `interface/owner/communication/notify/index.php`, `interface/owner/entry/index.php`
+
+## v2.18 — `owner/help` 경로순회/LFI 해소 (`$_GET['lang']` 화이트리스트 정규화, 보안 수정, 2026-05-31)
+
+- STAGE 4 v3.48과 동일 (5스테이지 공통 적용). 상세·검증 내용은 STAGE 4 `changelog8.4to8.5.md` v3.48 및 SECURITY.md 참조.
+- 수정 파일: `interface/owner/help/index.php`
+
+## v2.19 — owner 상태변경 액션 CSRF 가드 보강 + `requireStrictRoute` path-모드 강화 (보안 수정, 2026-05-31)
+
+- STAGE 4 v3.49와 동일 (5스테이지 공통 적용). 상세·회귀 검증(18 케이스) 내용은 STAGE 4 `changelog8.4to8.5.md` v3.49 및 SECURITY.md 참조.
+- 수정 파일: `library/auth.php` + owner 상태변경 액션 13개
+
+## v2.20 — Clipboard API HTTP fallback 개선 (`resources/script/common3.js`, 2026-05-31)
+
+- STAGE 4 v3.50과 동일 (5스테이지 공통 적용). 상세 내용은 STAGE 4 `changelog8.4to8.5.md` v3.50 및 SECURITY.md #7 참조.
+- 수정 파일: `resources/script/common3.js`
+
+## v2.21 — 쿠키 보안 속성(HttpOnly/SameSite/Secure) 보강 (보안 수정, 2026-05-31)
+
+- STAGE 4 v3.51과 동일 (5스테이지 공통 적용). 상세·검증 내용은 STAGE 4 `changelog8.4to8.5.md` v3.51 및 SECURITY.md #5 참조.
+- 수정 파일: `library/preprocessor.php`, `library/auth.php`, `framework/legacy/Textcube.Control.Session.php`·`Session.Memcached.php`·`Openid.php`, `interface/blog/comment/{comment,add}/index.php`
+
+## v2.22 — StatGraph jpgraph(QPL) → SVG 그래프 대체 (라이선스, 2026-05-31)
+
+- STAGE 4 v3.52와 동일 (5스테이지 공통 적용). 상세·검증 내용은 STAGE 4 `changelog8.4to8.5.md` v3.52 및 SECURITY.md #3 참조.
+- 수정/제거: `plugins/StatGraph/index.php`(SVG 재구현), `plugins/StatGraph/count/`(jpgraph QPL 제거)
+
+## v2.23 — OpenID 2.0 (EOL) 제거 → OIDC 재구현 (이중 옵트인, 2026-05-31)
+
+- STAGE 4 v3.53과 동일 (5스테이지 공통 적용). 상세·검증·테스트 내용은 STAGE 4 `changelog8.4to8.5.md` v3.53 및 SECURITY.md #4 참조.
+- OIDC 재구현(이중 옵트인, 의존 없는 자체 구현 `Textcube.Control.OIDC.php`) + OpenID 2.0/phpopenid(53파일) 완전 제거. `Openid.php` 헬퍼 축소(static화), `login/openid`(+`callback`)·`account/openid`·`setting/openid`·CL_OpenID 일원화.
+
+---
 
 ---
 

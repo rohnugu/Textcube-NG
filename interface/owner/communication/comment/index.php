@@ -307,11 +307,11 @@ foreach (getCategories($blogid) as $category) {
 							<form id="list-form" method="post" action="<?php echo $blogURL;?>/owner/communication/comment">
 <?php
 	if(isset($tabsClass['guestbook'])) echo '								<input type="hidden" name="status" value="guestbook" />'.CRLF;
-	if(isset($_POST['ip'])) echo '								<input type="hidden" name="ip" value="'.$_POST['ip'].'" />'.CRLF;
-	if(isset($_POST['name'])) echo '								<input type="hidden" name="name" value="'.$_POST['name'].'" />'.CRLF;
-	if(isset($_POST['category'])) echo '								<input type="hidden" name="category" value="'.$_POST['category'].'" />'.CRLF;
-	if(isset($_POST['search'])) echo '								<input type="hidden" name="search" value="'.$_POST['search'].'" />'.CRLF;
-	if(isset($_POST['withSearch'])) echo '								<input type="hidden" name="withSearch" value="'.$_POST['withSearch'].'" />'.CRLF;
+	if(isset($_POST['ip'])) echo '								<input type="hidden" name="ip" value="'.htmlspecialchars($_POST['ip'], ENT_QUOTES).'" />'.CRLF;
+	if(isset($_POST['name'])) echo '								<input type="hidden" name="name" value="'.htmlspecialchars($_POST['name'], ENT_QUOTES).'" />'.CRLF;
+	if(isset($_POST['category'])) echo '								<input type="hidden" name="category" value="'.htmlspecialchars($_POST['category'], ENT_QUOTES).'" />'.CRLF;
+	if(isset($_POST['search'])) echo '								<input type="hidden" name="search" value="'.htmlspecialchars($_POST['search'], ENT_QUOTES).'" />'.CRLF;
+	if(isset($_POST['withSearch'])) echo '								<input type="hidden" name="withSearch" value="'.htmlspecialchars($_POST['withSearch'], ENT_QUOTES).'" />'.CRLF;
 ?>
 								<div id="delete-section-top" class="section">
 									<span class="label"><?php echo _t('선택한 댓글을');?></span>
@@ -556,7 +556,7 @@ for ($i = 10; $i <= 30; $i += 5) {
 									<label for="search"><?php echo _t('제목');?>, <?php echo _t('내용');?></label>
 									<input type="text" id="search" class="input-text" name="search" value="<?php echo htmlspecialchars($search);?>" onkeydown="if (event.keyCode == '13') { document.getElementById('search-form').withSearch.value = 'on'; document.getElementById('search-form').submit(); }" />
 									<input type="hidden" name="withSearch" value="" />
-									<input type="hidden" name="status" value="<?php echo $_POST['status'];?>" />
+									<input type="hidden" name="status" value="<?php echo htmlspecialchars($_POST['status'], ENT_QUOTES);?>" />
 									<input type="submit" class="search-button input-button" value="<?php echo _t('검색');?>" onclick="document.getElementById('search-form').withSearch.value = 'on'; document.getElementById('search-form').submit();" />
 								</div>
 							</form>

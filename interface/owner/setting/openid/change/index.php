@@ -2,6 +2,10 @@
 /// Copyright (c) 2004-2007, Needlworks / Tatter Network Foundation
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
+///
+/// ---- Modification Notice ----
+/// OpenID 2.0 컨슈머 제거에 따라, 과거 OpenIDConsumer::setComment / setOpenIDLogoDisplay 호출을
+/// 동등한 설정 저장으로 인라인화한다. 플러그인 자동 활성(activatePlugin)은 이중 옵트인 정책상 제거한다.
 
 $IV = array(
 	'POST' => array(
@@ -13,14 +17,16 @@ $IV = array(
 require ROOT . '/library/preprocessor.php';
 requireLibrary('blog.skin');
 requireStrictRoute();
-requireModel( 'common.plugin' );
 $skin = new Skin($skinSetting['skin']);
 
-if( OpenIDConsumer::setComment( $_POST['openidonlycomment'] ) &&
-	OpenIDConsumer::setOpenIDLogoDisplay( $_POST['openidlogodisplay'] ) ) {
-	if( !empty($_POST['openidonlycomment']) || !empty($_POST['openidlogodisplay']) ) {
-		activatePlugin('CL_OpenID');
-	}
+if( !Acl::check( array("group.administrators") ) ) {
+	Respond::ResultPage(-1);
+	exit;
+}
+
+$commentMode = empty($_POST['openidonlycomment']) ? '' : 'openid';
+if( Setting::setBlogSettingGlobal( "AddCommentMode", $commentMode ) &&
+	Setting::setBlogSettingGlobal( "OpenIDLogoDisplay", $_POST['openidlogodisplay'] ) ) {
 	$skin->purgeCache();
 	Respond::ResultPage(0);
 } else {
