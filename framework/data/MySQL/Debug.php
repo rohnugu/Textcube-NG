@@ -275,7 +275,7 @@ EOS;
 	$cached_count = 0;
 	foreach( $__tcSqlLog as $c => $log ) {
 		$elapsed[$count] = array( $log['elapsed'], $count, $log['cached'] ? "cached":"" );
-		$__tcSqlLog[$c]['percent'] = sprintf("%4.1f", $log['endtime']*100/$__tcPageEndTime);
+		$__tcSqlLog[$c]['percent'] = sprintf("%4.1f", empty($__tcPageEndTime) ? 0 : $log['endtime']*100/$__tcPageEndTime);
 		$count++;
 	}
 
