@@ -22,6 +22,7 @@ function printHtmlFooter() {
 }
 
 function dress($tag, $value, & $contents, $useCache = false, $forcePatch = false) {
+	$value = $value ?? '';
 	global $__gDressTags;
 	if($useCache == true) {
 		if(strpos($tag, 'sidebar_') !== false ||
@@ -44,6 +45,7 @@ function dress($tag, $value, & $contents, $useCache = false, $forcePatch = false
 }
 
 function dressInsertBefore($tag, $value, & $contents, $useCache = false, $forcePatch = false) {
+	$value = $value ?? '';
 	global $__gDressTags;
 	if($useCache == true) {
 		if(strpos($tag, 'sidebar_') !== false ||

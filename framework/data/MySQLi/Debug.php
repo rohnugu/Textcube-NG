@@ -135,7 +135,8 @@ function __tcSqlLogDump()
 	global $__tcSqlLog, $__tcPageEndTime;
 	global $service, $memcache;
 	static $sLogPumped = false;
-	if (!empty($sLogPumped)) return;
+
+	if (!empty($sLogPumped) || !empty($GLOBALS['__preventSqlLogDump'])) return;
 	$sLogPumped = true;
 
 	__tcSqlLogPoint('shutdown');

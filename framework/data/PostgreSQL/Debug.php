@@ -127,7 +127,7 @@ function __tcSqlLogDump()
 	global $service;
 	static $sLogPumped = false;
 	
-	if (!empty($sLogPumped)) return;
+	if (!empty($sLogPumped) || !empty($GLOBALS['__preventSqlLogDump'])) return;
 	$sLogPumped = true;
 	
 	__tcSqlLogPoint('shutdown');

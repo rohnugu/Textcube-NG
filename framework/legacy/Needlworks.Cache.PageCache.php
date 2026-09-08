@@ -3,6 +3,7 @@
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 
+#[AllowDynamicProperties]
 class pageCache extends Singleton {
 	function __construct($name = null){
 		$this->pool = DBModel::getInstance();
@@ -168,6 +169,7 @@ class pageCache extends Singleton {
 
 }
 
+#[AllowDynamicProperties]
 class queryCache extends Singleton {
 	private $pooltype = null;
 	function __construct($query = null, $prefix = null){
@@ -286,6 +288,7 @@ class queryCache extends Singleton {
 // globalCacheStorage caches essential but 'relatively static' information, like
 // blogSettings, ServiceSettings, activePlugins, etc..
 // Textcube will use it as global object.
+#[AllowDynamicProperties]
 class globalCacheStorage extends pageCache {
 	function __construct() {
 		$this->_isChanged = false;

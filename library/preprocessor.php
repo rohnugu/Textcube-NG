@@ -190,7 +190,15 @@ if ($browserUtil->isMobile() == true) {
 if (!defined('NO_SESSION')) {
 	session_name(Session::getName());
 	Session::set();
-	session_set_save_handler( array('Session','open'), array('Session','close'), array('Session','read'), array('Session','write'), array('Session','destroy'), array('Session','gc') );
+	$sessionHandler = new class implements SessionHandlerInterface {
+		#[\ReturnTypeWillChange] public function open($path, $name) { return Session::open($path, $name); }
+		#[\ReturnTypeWillChange] public function close() { return Session::close(); }
+		#[\ReturnTypeWillChange] public function read($id) { return Session::read($id); }
+		#[\ReturnTypeWillChange] public function write($id, $data) { return Session::write($id, $data); }
+		#[\ReturnTypeWillChange] public function destroy($id) { return Session::destroy($id); }
+		#[\ReturnTypeWillChange] public function gc($max_lifetime) { return Session::gc($max_lifetime); }
+	};
+	session_set_save_handler($sessionHandler);
 	session_cache_expire(1);
 	session_set_cookie_params(array('lifetime' => 0, 'path' => '/', 'domain' => $context->getProperty('service.session_cookie_domain'), 'secure' => (bool)$context->getProperty('service.useSSL', false), 'httponly' => true, 'samesite' => 'Lax'));
 	// Workaround for servers that modifies session cookie to its own way

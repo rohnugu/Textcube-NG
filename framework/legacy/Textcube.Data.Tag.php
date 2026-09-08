@@ -200,7 +200,7 @@ class Tag {
 			POD::execute("DELETE FROM {$database['prefix']}TagRelations 
 				WHERE blogid = $blogid AND entry = $entry");
 			$nottargets = POD::queryColumn("SELECT DISTINCT tag FROM {$database['prefix']}TagRelations WHERE tag in ( $tagliststr )");
-			if (count($nottargets) > 0) {
+			if (!empty($nottargets)) {
 				$nottargetstr	= implode(', ', $nottargets);
 				POD::execute("DELETE FROM {$database['prefix']}Tags WHERE id IN ( $tagliststr ) AND id NOT IN ( $nottargetstr )");
 			} else {

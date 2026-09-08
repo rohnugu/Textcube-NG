@@ -277,15 +277,15 @@ if (isset($_GET['returnURL'])) {
 										try {
 											latitudeValue = jQuery('input[name=latitude]').val()
 										} catch(e) {}
-										if(latitudeValue == undefined) {
-											latitudeValue = null;
+										if(latitudeValue == undefined || latitudeValue == null) {
+											latitudeValue = "";
 										}
 										var longitudeValue = "";
 										try {
 											longitudeValue = jQuery('input[name=longitude]').val()
 										} catch(e) {}
-										if(longitudeValue == undefined) {
-											longitudeValue = null;
+										if(longitudeValue == undefined || longitudeValue == null) {
+											longitudeValue = "";
 										}
 										var tagValue = "";
 										try {

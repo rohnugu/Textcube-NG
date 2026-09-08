@@ -399,7 +399,7 @@ if (sizeof($trackbacks) == 0) {
                                             <td class="selection">
                                                 <input id="trackbackCheckId<?php echo $trackbackRow['id']; ?>" type="checkbox" class="checkbox"
                                                        name="entry" value="<?php echo $trackbackRow['id']; ?>"
-                                                       ip="<?php echo urlencode($trackbackRow['ip']); ?>"/>
+                                                       ip="<?php echo urlencode($trackbackRow['ip'] ?? ''); ?>"/>
                                                 <label for="trackbackCheckId<?php echo $trackbackRow['id']; ?>"></label>
                                             </td>
                                             <td class="date"><?php echo Timestamp::formatDate($trackbackRow['written']); ?></td>

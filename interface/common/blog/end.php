@@ -5,7 +5,7 @@
 
 //handleTags($view);
 
-$pageTitle = trim($pageTitle);
+$pageTitle = isset($pageTitle) && $pageTitle !== null ? trim($pageTitle) : '';
 if (!empty($pageTitle)) {
 	$pageTitleView = $skin->pageTitle;
 	if(!empty($pageTitleView)) {

@@ -4,6 +4,7 @@
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 class respond {
 	function ResultPage($errorResult) {
+		$GLOBALS['__preventSqlLogDump'] = true;
 		if (is_array($errorResult) && count($errorResult) < 2) {
 			$errorResult = array_shift($errorResult);
 		}
@@ -24,6 +25,7 @@ class respond {
 	}
 	
 	function PrintResult($result, $useCDATA=true) {
+		$GLOBALS['__preventSqlLogDump'] = true;
 		header('Content-Type: text/xml; charset=utf-8');
 		$xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
 		$xml .= "<response>\n";

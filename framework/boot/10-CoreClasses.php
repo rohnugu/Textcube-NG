@@ -883,11 +883,10 @@ class XMLStruct {
 		} else {
 			$p = xml_parser_create();
 		}
-		xml_set_object($p, $this);
 		xml_parser_set_option($p, XML_OPTION_CASE_FOLDING, 0);
-		xml_set_element_handler($p, 'o', 'c');
-		xml_set_character_data_handler($p, 'd');
-		xml_set_default_handler($p, 'x');
+		xml_set_element_handler($p, [$this, 'o'], [$this, 'c']);
+		xml_set_character_data_handler($p, [$this, 'd']);
+		xml_set_default_handler($p, [$this, 'x']);
 		$this->struct = array();
 		$this->_cursor = &$this->struct;
 		$this->_path = array('');
@@ -906,11 +905,10 @@ class XMLStruct {
 		if (!$fp = fopen($filename, 'r'))
 			return false;
 		$p = xml_parser_create();
-		xml_set_object($p, $this);
 		xml_parser_set_option($p, XML_OPTION_CASE_FOLDING, 0);
-		xml_set_element_handler($p, 'o', 'c');
-		xml_set_character_data_handler($p, 'd');
-		xml_set_default_handler($p, 'x');
+		xml_set_element_handler($p, [$this, 'o'], [$this, 'c']);
+		xml_set_character_data_handler($p, [$this, 'd']);
+		xml_set_default_handler($p, [$this, 'x']);
 		$this->struct = array();
 		$this->_cursor = &$this->struct;
 		$this->_path = array('');
@@ -1189,8 +1187,9 @@ class XMLStruct {
 
 final class URL {
 	static function encode($url,$useEncodedURL = true) {
+		$url = $url ?? '';
 		$postfix = '';
-		if(substr($url,strlen($url)-1) == '?') {
+		if(strlen($url) > 0 && substr($url,strlen($url)-1) == '?') {
 			$url = substr($url,0,strlen($url)-1);
 			$postfix = '?';
 		}
@@ -1201,6 +1200,7 @@ final class URL {
 	}
 
 	static function decode($url,$useEncodedURL = true) {
+		$url = $url ?? '';
 		if ($useEncodedURL == true)
 			return rawurldecode($url);
 		else

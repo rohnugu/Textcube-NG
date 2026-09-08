@@ -135,7 +135,7 @@ function __tcSqlLogDump()
 	global $service;
 	static $sLogPumped = false;
 
-	if (!empty($sLogPumped)) return;
+	if (!empty($sLogPumped) || !empty($GLOBALS['__preventSqlLogDump'])) return;
 	$sLogPumped = true;
 
 	__tcSqlLogPoint('shutdown');
@@ -331,9 +331,9 @@ THEAD;
 			$backtrace = '';
 		}
 
-		$elapsed_total_db += $log['elapsed'];
-		$elapsed_total = $log['endtime'];
-		$progress_bar = $log['percent'] / 2; //Max 50px;
+		$elapsed_total_db += (float) ($log['elapsed'] ?? 0);
+		$elapsed_total = $log['endtime'] ?? 0;
+		$progress_bar = (float) ($log['percent'] ?? 0) / 2; //Max 50px;
 		if (!$commentBlosk) {
 			$log['sql'] = htmlspecialchars($log['sql']);
 			$log['percent'] = "<div style='background:#f00;line-height:10px;width:{$progress_bar}px'>&nbsp;</div>";
