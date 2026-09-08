@@ -378,7 +378,7 @@ function deleteFeedGroup($blogid, $id) {
 	return 0;
 }
 
-function addFeed($blogid, $group = 0, $url, $getEntireFeed = true, $htmlURL = '', $blogTitle = '', $blogDescription = '') {
+function addFeed($blogid, $group, $url, $getEntireFeed = true, $htmlURL = '', $blogTitle = '', $blogDescription = '') {
 	global $database;
 	if(strpos(strtolower($url), 'http://') !== 0)
 		$url = 'http://'.$url;

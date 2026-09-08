@@ -1034,7 +1034,7 @@ function getRecentNoticesView($notices, $noticeView, $noticeItemView, $isPage = 
 	return $noticeView;
 }
 
-function getRecentEntriesView($entries, $entriesView = null, $template) {
+function getRecentEntriesView($entries, $entriesView, $template) {
 	global $blog, $service, $blogURL, $skinSetting, $contentContainer;
 	$recentEntriesView = '';
 	foreach ($entries as $entry) {
@@ -1060,7 +1060,7 @@ function getRecentEntriesView($entries, $entriesView = null, $template) {
 	return $recentEntriesView;
 }
 
-function getRecentCommentsView($comments, $commentView = null, $template) {
+function getRecentCommentsView($comments, $commentView, $template) {
 	global $blog, $service, $blogURL, $skinSetting, $contentContainer;
 	$recentCommentView = '';
 	foreach ($comments as $comment) {
@@ -1082,7 +1082,7 @@ function getRecentCommentsView($comments, $commentView = null, $template) {
 	return $recentCommentView;
 }
 
-function getRecentTrackbacksView($trackbacks, $trackbackView = null, $template) {
+function getRecentTrackbacksView($trackbacks, $trackbackView, $template) {
 	global $blogURL, $blog, $skinSetting, $service;
 	$recentTrackbackView = '';
 	foreach ($trackbacks as $trackback) {
@@ -1463,7 +1463,7 @@ function printFeedEntries($blogid, $group = 0, $feed = 0, $unreadOnly = false, $
 	return $count;
 }
 
-function printFeedEntriesMore($blogid, $group = 0, $feed = 0, $unreadOnly = false, $starredOnly = false, $searchKeyword = null, $offset) {
+function printFeedEntriesMore($blogid, $group, $feed, $unreadOnly, $starredOnly, $searchKeyword, $offset) {
 	global $service;
 ?>
 												<table cellpadding="0" cellspacing="0">

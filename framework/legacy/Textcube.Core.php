@@ -168,14 +168,14 @@ class User {
 		return false;
 	}
 	
-	static function confirmPassword($userid = null, $password) {
+	static function confirmPassword($userid, $password) {
 		global $database;
 		if(empty($userid)) $userid = getUserId(); 
 		$password = md5($password);
 		return POD::queryExistence("SELECT userid FROM {$database['prefix']}Users WHERE userid = $userid AND password = '$password'");
 	}
 
-	static function authorName($blogid = null,$entryId){
+	static function authorName($blogid, $entryId){
 		if( is_null($blogid) ) {
 			$blogid = getBlogId();
 		}
@@ -349,7 +349,7 @@ class Blog {
 	}
 
 	/*@static@*/
-	static function deleteUser($blogid = null, $userid, $clean = true) {
+	static function deleteUser($blogid, $userid, $clean = true) {
 		global $database;
 		if ($blogid == null) {
 			$blogid = getBlogId();

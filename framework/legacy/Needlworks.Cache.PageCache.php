@@ -649,6 +649,7 @@ class MMCache{
 	}
 }
 
+#[AllowDynamicProperties]
 class CodeCache {
 	function __construct() {
 		$this->reset();

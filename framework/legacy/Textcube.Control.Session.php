@@ -255,7 +255,7 @@ final class Session {
 	}
 
 	/* Customized queryset (for recovering Session tables) */
-	private static function query($mode='query',$sql) {
+	private static function query($mode, $sql) {
 		if(is_null(self::$context)) self::initialize();
 
 		$result = self::DBQuery($mode,$sql);
@@ -270,7 +270,7 @@ final class Session {
 		return $result;
 	}
 
-	private static function DBQuery($mode='query',$sql) {
+	private static function DBQuery($mode, $sql) {
 		switch($mode) {
 			case 'cell':	return POD::queryCell($sql);
 			case 'row':		return POD::queryRow($sql);
