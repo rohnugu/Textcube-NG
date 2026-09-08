@@ -3,7 +3,7 @@
 /// All rights reserved. Licensed under the GPL.
 /// See the GNU General Public License for more details. (/documents/LICENSE, /documents/COPYRIGHT)
 class Base64Stream {
-	function encode($src = null, $dest = null) {
+	public static function encode($src = null, $dest = null) {
 		if (is_string($src)) {
 			if (is_null($dest)) {
 				if (!$src = fopen($src, 'r'))
@@ -24,7 +24,7 @@ class Base64Stream {
 		return false;
 	}
 	
-	function decode($src = null, $dest = null) {
+	public static function decode($src = null, $dest = null) {
 		if (is_resource($src) && (get_resource_type($src) == 'stream')) {
 			if (is_string($dest)) {
 				$dest = fopen($dest, 'w');
